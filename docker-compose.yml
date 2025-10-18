@@ -1,0 +1,139 @@
+version: '3.8'
+
+services:
+  # Flask Backend Application
+  backend:
+    build: ./backend # https://docs.docker.com/reference/compose-file/build/
+    container_name: flask-backend
+    ports:
+      - "5000:5000"
+    environment: # https://docs.docker.com/compose/how-tos/environment-variables/set-environment-variables/
+      - OTEL_SERVICE_NAME=flask-backend
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4318
+      - OTEL_EXPORTER_OTLP_PROTOCOL=http/protobuf
+      - OTEL_TRACES_EXPORTER=otlp
+      - OTEL_METRICS_EXPORTER=otlp
+      - OTEL_LOGS_EXPORTER=otlp
+      - OTEL_RESOURCE_ATTRIBUTES=service.name=flask-backend,service.version=1.0.0,deployment.environment=lab
+    volumes:
+      - ./backend:/app
+      - backend-data:/app/data
+    depends_on:
+      - otel-collector
+    networks:
+      - otel-network
+
+  # OpenTelemetry Collector
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.96.0
+    container_name: otel-collector
+    command: ["--config=/etc/otel-collector-config.yml"]
+    volumes: # https://docs.docker.com/reference/compose-file/volumes/
+    # https://docs.docker.com/engine/storage/bind-mounts/
+      # Bind mounts are suitable for several use cases:
+        # - Sharing source code or build artifacts between the Docker host and containers during development.
+        # - Persisting files created or generated in a container onto the host's filesystem.
+        # - Providing configuration files from the host to containers (e.g., Docker mounts /etc/resolv.conf for DNS).
+        # - Supporting builds by mounting host source code into build containers for testing, linting, or compiling.
+      - ./otel-collector/otel-collector-config.yml:/etc/otel-collector-config.yml # “Bind-mount the host file ./otel-collector/otel-collector-config.yml into the container at /etc/otel-collector-config.yml.”
+    ports:
+      - "4317:4317"   # OTLP gRPC receiver
+      - "4318:4318"   # OTLP HTTP receiver
+      - "8888:8888"   # Prometheus metrics exposed by the collector
+      - "8889:8889"   # Prometheus exporter metrics
+      - "13133:13133" # health_check extension
+    depends_on:
+      - tempo
+      - loki
+      - prometheus
+    networks:
+      - otel-network
+
+  # Grafana Tempo - Distributed Tracing Backend
+  tempo:
+    image: grafana/tempo:2.3.1
+    container_name: tempo
+    command: [ "-config.file=/etc/tempo.yml" ]
+    volumes:
+      - ./otel-collector/tempo.yml:/etc/tempo.yml
+      - tempo-data:/tmp/tempo
+    ports:
+      - "3200:3200"   # tempo
+      - "4317"        # otlp grpc
+    networks:
+      - otel-network
+
+  # Grafana Loki - Log Aggregation
+  loki:
+    image: grafana/loki:2.9.3
+    container_name: loki
+    ports:
+      - "3100:3100"
+    command: -config.file=/etc/loki/local-config.yaml
+    volumes:
+      - ./otel-collector/loki-config.yml:/etc/loki/local-config.yaml
+      - loki-data:/loki
+    networks:
+      - otel-network
+
+  # Prometheus - Metrics Storage
+  prometheus:
+    image: prom/prometheus:v2.48.1
+    container_name: prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--web.enable-lifecycle'
+      - '--web.enable-remote-write-receiver'
+    volumes:
+      - ./otel-collector/prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus-data:/prometheus
+    ports:
+      - "9090:9090"
+    networks:
+      - otel-network
+
+  # Grafana - Visualization Platform
+  grafana:
+    image: grafana/grafana:10.2.3
+    container_name: grafana
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_AUTH_ANONYMOUS_ENABLED=true
+      - GF_AUTH_ANONYMOUS_ORG_ROLE=Admin
+      - GF_FEATURE_TOGGLES_ENABLE=traceqlEditor
+    volumes:
+      - ./grafana/provisioning:/etc/grafana/provisioning
+      - ./grafana/dashboards:/var/lib/grafana/dashboards
+      - grafana-data:/var/lib/grafana
+    depends_on:
+      - prometheus
+      - tempo
+      - loki
+    networks:
+      - otel-network
+
+  # Frontend - Nginx serving static files
+  frontend:
+    image: nginx:alpine
+    container_name: frontend
+    ports:
+      - "8080:80"
+    volumes:
+      - ./frontend:/usr/share/nginx/html:ro
+    networks:
+      - otel-network
+
+networks:
+  otel-network:
+    driver: bridge
+
+volumes:
+  backend-data:
+  tempo-data:
+  loki-data:
+  prometheus-data:
+  grafana-data:
