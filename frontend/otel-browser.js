@@ -23,9 +23,11 @@ const provider = new WebTracerProvider({
   resource: resource,
 });
 
-// Configure OTLP exporter - Note: This requires CORS configuration on the collector
+// Configure OTLP exporter - Dynamic URL based on current hostname
+// This makes the config work across all environments (localhost, VM, cloud)
+const collectorUrl = `http://${window.location.hostname}:4318/v1/traces`;
 const exporter = new OTLPTraceExporter({
-  url: 'http://localhost:4318/v1/traces',
+  url: collectorUrl,
 });
 
 // Add span processor
@@ -37,19 +39,23 @@ provider.register({
 });
 
 // Register instrumentations for automatic tracing
+// Dynamic CORS URLs based on current hostname for environment portability
+const backendUrl = `http://${window.location.hostname}:5000`;
+const backendUrlPattern = new RegExp(`http://${window.location.hostname}:5000/.*`);
+
 registerInstrumentations({
   instrumentations: [
     new FetchInstrumentation({
       propagateTraceHeaderCorsUrls: [
-        'http://localhost:5000',
-        /http:\/\/localhost:5000\/.*/,
+        backendUrl,
+        backendUrlPattern,
       ],
       clearTimingResources: true,
     }),
     new XMLHttpRequestInstrumentation({
       propagateTraceHeaderCorsUrls: [
-        'http://localhost:5000',
-        /http:\/\/localhost:5000\/.*/,
+        backendUrl,
+        backendUrlPattern,
       ],
     }),
   ],

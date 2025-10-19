@@ -13,11 +13,9 @@ from opentelemetry import trace, metrics
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import BatchSpanProcessor
 from opentelemetry.sdk.metrics import MeterProvider
-from opentelemetry.sdk.metrics.export import PeriodicExportingMetricReader
 from opentelemetry.sdk._logs import LoggerProvider, LoggingHandler
 from opentelemetry.sdk._logs.export import BatchLogRecordProcessor
 from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
-from opentelemetry.exporter.otlp.proto.http.metric_exporter import OTLPMetricExporter
 from opentelemetry.exporter.otlp.proto.http._log_exporter import OTLPLogExporter
 from opentelemetry.sdk.resources import Resource
 from opentelemetry.instrumentation.flask import FlaskInstrumentor
@@ -53,12 +51,9 @@ tracer_provider.add_span_processor(span_processor)
 trace.set_tracer_provider(tracer_provider)
 tracer = trace.get_tracer(__name__)
 
-# Setup Metrics
-otlp_metric_exporter = OTLPMetricExporter(
-    endpoint=f"{os.getenv('OTEL_EXPORTER_OTLP_ENDPOINT', 'http://otel-collector:4318')}/v1/metrics"
-)
-metric_reader = PeriodicExportingMetricReader(otlp_metric_exporter, export_interval_millis=5000)
-meter_provider = MeterProvider(resource=resource, metric_readers=[metric_reader])
+# Setup Metrics - OTel meter for internal instrumentation only (span attributes)
+# NOTE: No OTLP export - we use prometheus_client for all Prometheus metrics
+meter_provider = MeterProvider(resource=resource)
 metrics.set_meter_provider(meter_provider)
 meter = metrics.get_meter(__name__)
 
