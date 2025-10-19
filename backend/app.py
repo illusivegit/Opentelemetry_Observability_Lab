@@ -144,21 +144,13 @@ class Task(db.Model):
             'created_at': self.created_at.isoformat()
         }
 
-# Create tables and instrument SQLAlchemy within app context
-with app.app_context():
-    os.makedirs('/app/data', exist_ok=True)
-    # Instrument SQLAlchemy inside app context where db.engine is accessible
-    SQLAlchemyInstrumentor().instrument(engine=db.engine)
-    db.create_all()
-    logger.info("Database initialized")
-
-# SQLAlchemy event listeners for Prometheus DB query duration tracking
-@event.listens_for(db.engine, "before_cursor_execute")
+# SQLAlchemy event listener functions for Prometheus DB query duration tracking
+# NOTE: Defined as plain functions (not decorators) to avoid "Working outside of application context" error
+# These will be attached to db.engine inside the app context block below
 def _before_cursor_execute(conn, cursor, statement, parameters, context, executemany):
     """Record query start time before execution"""
     context._query_start_time = perf_counter()
 
-@event.listens_for(db.engine, "after_cursor_execute")
 def _after_cursor_execute(conn, cursor, statement, parameters, context, executemany):
     """Record query duration after execution and classify operation type"""
     try:
@@ -180,6 +172,20 @@ def _after_cursor_execute(conn, cursor, statement, parameters, context, executem
 
     # Record to Prometheus histogram
     prom_db_query_duration_seconds.labels(operation=op).observe(elapsed)
+
+# Create tables and instrument SQLAlchemy within app context
+with app.app_context():
+    os.makedirs('/app/data', exist_ok=True)
+    # Instrument SQLAlchemy inside app context where db.engine is accessible
+    SQLAlchemyInstrumentor().instrument(engine=db.engine)
+    db.create_all()
+    logger.info("Database initialized")
+
+    # Attach SQLAlchemy event listeners for Prometheus DB metrics
+    # Must be done inside app context to avoid "Working outside of application context" error
+    event.listen(db.engine, "before_cursor_execute", _before_cursor_execute)
+    event.listen(db.engine, "after_cursor_execute", _after_cursor_execute)
+    logger.info("SQLAlchemy event listeners registered for DB query duration tracking")
 
 # Middleware for request tracking
 @app.before_request
