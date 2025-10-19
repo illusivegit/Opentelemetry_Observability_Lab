@@ -2,10 +2,11 @@ import os
 import logging
 import time
 from datetime import datetime
-from flask import Flask, jsonify, request
+from flask import Flask, jsonify, request, Response
 from flask_cors import CORS
 from flask_sqlalchemy import SQLAlchemy
 from pythonjsonlogger import jsonlogger
+from prometheus_client import generate_latest, CONTENT_TYPE_LATEST
 
 # OpenTelemetry Imports
 from opentelemetry import trace, metrics
@@ -404,6 +405,12 @@ def simulate_slow():
         logger.info(f"Simulating slow request with {delay}s delay")
         time.sleep(delay)
         return jsonify({"message": f"Delayed response after {delay} seconds"}), 200
+
+@app.route('/metrics', methods=['GET'])
+def metrics():
+    """Prometheus metrics endpoint"""
+    # Generate and return Prometheus metrics in text format
+    return Response(generate_latest(), mimetype=CONTENT_TYPE_LATEST)
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=False)
