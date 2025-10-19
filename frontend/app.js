@@ -1,5 +1,6 @@
 // Application Logic with Manual Tracing
-const API_URL = 'http://localhost:5000/api';
+// Dynamic API URL - works across different environments (localhost, VM, cloud, etc.)
+const API_URL = `${window.location.protocol}//${window.location.hostname}:5000/api`;
 
 // Global state
 let tasks = [];
