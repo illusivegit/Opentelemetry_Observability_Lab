@@ -2,9 +2,11 @@ import os
 import logging
 import time
 from datetime import datetime
+from time import perf_counter
 from flask import Flask, jsonify, request, Response, g
 from flask_cors import CORS
 from flask_sqlalchemy import SQLAlchemy
+from sqlalchemy import event
 from pythonjsonlogger import jsonlogger
 from prometheus_client import generate_latest, CONTENT_TYPE_LATEST, Counter, Histogram
 
@@ -102,6 +104,15 @@ prom_http_errors_total = Counter(
     ['method', 'endpoint', 'status_code']
 )
 
+# Histogram for SQLite query latency (seconds)
+# Buckets chosen for typical SQLite operations (2ms to 2s range)
+prom_db_query_duration_seconds = Histogram(
+    'db_query_duration_seconds',
+    'SQLite query duration in seconds',
+    ['operation'],  # SELECT/INSERT/UPDATE/DELETE
+    buckets=(0.002, 0.005, 0.01, 0.02, 0.05, 0.1, 0.25, 0.5, 1, 2)
+)
+
 # Initialize Flask App
 app = Flask(__name__)
 CORS(app)
@@ -140,6 +151,35 @@ with app.app_context():
     SQLAlchemyInstrumentor().instrument(engine=db.engine)
     db.create_all()
     logger.info("Database initialized")
+
+# SQLAlchemy event listeners for Prometheus DB query duration tracking
+@event.listens_for(db.engine, "before_cursor_execute")
+def _before_cursor_execute(conn, cursor, statement, parameters, context, executemany):
+    """Record query start time before execution"""
+    context._query_start_time = perf_counter()
+
+@event.listens_for(db.engine, "after_cursor_execute")
+def _after_cursor_execute(conn, cursor, statement, parameters, context, executemany):
+    """Record query duration after execution and classify operation type"""
+    try:
+        started = context._query_start_time
+    except AttributeError:
+        return
+
+    elapsed = perf_counter() - started
+
+    # Classify operation type from SQL statement
+    s = statement.lstrip().upper()
+    op = "SELECT"
+    if s.startswith("INSERT"):
+        op = "INSERT"
+    elif s.startswith("UPDATE"):
+        op = "UPDATE"
+    elif s.startswith("DELETE"):
+        op = "DELETE"
+
+    # Record to Prometheus histogram
+    prom_db_query_duration_seconds.labels(operation=op).observe(elapsed)
 
 # Middleware for request tracking
 @app.before_request
@@ -419,6 +459,66 @@ def metrics():
     """Prometheus metrics endpoint"""
     # Generate and return Prometheus metrics in text format
     return Response(generate_latest(), mimetype=CONTENT_TYPE_LATEST)
+
+@app.route('/api/smoke/db', methods=['POST'])
+def db_smoke():
+    """
+    Generate DB traffic to warm Prometheus histograms.
+    Query params:
+      ops: total operations (default 200)
+      type: 'read' | 'write' | 'rw'  (default 'rw')
+    Writes are executed in a transaction and rolled back.
+    """
+    from sqlalchemy.sql import text
+
+    ops = int(request.args.get('ops', 200))
+    mode = request.args.get('type', 'rw').lower()
+
+    read_ops = ops if mode == 'read' else (ops // 2 if mode == 'rw' else 0)
+    write_ops = 0 if mode == 'read' else (ops if mode == 'write' else ops - read_ops)
+
+    # Simple SELECT target
+    read_stmt = text('SELECT COUNT(*) FROM tasks')
+
+    # Simple INSERT/DELETE target (rolled back)
+    insert_stmt = text('INSERT INTO tasks (title, description, completed, created_at) VALUES (:t, :d, :c, :dt)')
+    delete_stmt = text('DELETE FROM tasks WHERE title LIKE :prefix')
+
+    try:
+        # Do reads without transaction (no state change)
+        with db.engine.connect() as conn:
+            for _ in range(read_ops):
+                conn.execute(read_stmt)
+
+        # Do writes in a transaction and roll back
+        with db.engine.connect() as conn:
+            trans = conn.begin()
+            try:
+                for i in range(write_ops):
+                    conn.execute(
+                        insert_stmt,
+                        dict(t=f"smoke-{i}", d="smoke-test", c=False, dt=datetime.utcnow())
+                    )
+                # Clean them up (observe DELETE path too)
+                conn.execute(delete_stmt, dict(prefix='smoke-%'))
+                # Roll back so DB remains unchanged
+                trans.rollback()
+            except Exception:
+                trans.rollback()
+                raise
+
+        logger.info(f"DB smoke test completed: {read_ops} reads, {write_ops} writes (rolled back)")
+
+        return jsonify({
+            "ok": True,
+            "requested_ops": ops,
+            "performed": {"read": read_ops, "write": write_ops},
+            "note": "writes executed in a transaction and rolled back"
+        }), 200
+
+    except Exception as e:
+        logger.error(f"DB smoke test failed: {str(e)}", exc_info=True)
+        return jsonify({"error": "DB smoke test failed", "details": str(e)}), 500
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=False)

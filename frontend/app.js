@@ -38,6 +38,39 @@ function setupDynamicLinks() {
 function setupEventListeners() {
     const form = document.getElementById('task-form');
     form.addEventListener('submit', handleFormSubmit);
+
+    // DB smoke test button
+    const btnDbSmoke = document.getElementById('btn-db-smoke');
+    if (btnDbSmoke) {
+        btnDbSmoke.addEventListener('click', async () => {
+            const startTime = performance.now();
+            console.log('[TRACE] Starting DB smoke test');
+            showToast('DB smoke test started (300 ops)...', 'warning');
+
+            try {
+                // 300 ops mixed read/write; adjust as needed
+                const url = `${API_URL}/smoke/db?ops=300&type=rw`;
+                const response = await fetch(url, { method: 'POST' });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const data = await response.json();
+                const duration = performance.now() - startTime;
+
+                console.log('[DB SMOKE]', data);
+                console.log(`[METRIC] DB smoke test completed in ${duration.toFixed(2)}ms`);
+
+                showToast(`DB smoke completed: ${data.performed.read} reads, ${data.performed.write} writes. Give Grafana ~1-2 min to show P95.`, 'success');
+            } catch (error) {
+                console.error('[ERROR] DB smoke test failed:', error);
+                const duration = performance.now() - startTime;
+                console.log(`[METRIC] DB smoke test failed after ${duration.toFixed(2)}ms`);
+                showToast('DB smoke test failed - see console for details.', 'error');
+            }
+        });
+    }
 }
 
 // Load all tasks
