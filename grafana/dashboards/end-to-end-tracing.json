@@ -9,7 +9,7 @@
   "links": [],
   "panels": [
     {
-      "datasource": "Tempo",
+      "datasource": {"type": "tempo", "uid": "tempo"},
       "gridPos": {
         "h": 12,
         "w": 24,
@@ -29,7 +29,7 @@
       "description": "Search for traces across the entire application. Use TraceQL to filter by service, span attributes, or duration."
     },
     {
-      "datasource": "Tempo",
+      "datasource": {"type": "tempo", "uid": "tempo"},
       "gridPos": {
         "h": 10,
         "w": 24,
@@ -89,7 +89,7 @@
           "text": "flask-backend",
           "value": "flask-backend"
         },
-        "datasource": "Tempo",
+        "datasource": {"type": "tempo", "uid": "tempo"},
         "definition": "",
         "hide": 0,
         "includeAll": false,

@@ -2,11 +2,11 @@ import os
 import logging
 import time
 from datetime import datetime
-from flask import Flask, jsonify, request, Response
+from flask import Flask, jsonify, request, Response, g
 from flask_cors import CORS
 from flask_sqlalchemy import SQLAlchemy
 from pythonjsonlogger import jsonlogger
-from prometheus_client import generate_latest, CONTENT_TYPE_LATEST
+from prometheus_client import generate_latest, CONTENT_TYPE_LATEST, Counter, Histogram
 
 # OpenTelemetry Imports
 from opentelemetry import trace, metrics
@@ -76,29 +76,35 @@ logger_provider.add_log_record_processor(BatchLogRecordProcessor(otlp_log_export
 otel_log_handler = LoggingHandler(level=logging.INFO, logger_provider=logger_provider)
 logging.getLogger().addHandler(otel_log_handler)
 
-# Custom Metrics for SLIs
-request_counter = meter.create_counter(
-    name="http_requests_total",
-    description="Total number of HTTP requests",
-    unit="1"
-)
+# NOTE: OTel metrics for Prometheus removed to eliminate duplication.
+# We now use ONLY prometheus_client metrics exposed at /metrics endpoint.
+# OTel still handles traces (Tempo) and logs (Loki) via OTLP collector.
 
-request_duration = meter.create_histogram(
-    name="http_request_duration_seconds",
-    description="HTTP request duration in seconds",
-    unit="s"
-)
-
+# Database query duration tracking (OTel-only, for span attributes)
 database_query_duration = meter.create_histogram(
     name="database_query_duration_seconds",
     description="Database query duration in seconds",
     unit="s"
 )
 
-error_counter = meter.create_counter(
-    name="http_errors_total",
-    description="Total number of HTTP errors",
-    unit="1"
+# Prometheus Client Metrics (exported via /metrics endpoint for scraping)
+# These are the ONLY metrics sent to Prometheus (no duplication)
+prom_http_requests_total = Counter(
+    'http_requests_total',
+    'Total HTTP requests',
+    ['method', 'endpoint', 'status_code']
+)
+
+prom_http_request_duration_seconds = Histogram(
+    'http_request_duration_seconds',
+    'HTTP request duration in seconds',
+    ['method', 'endpoint', 'status_code']
+)
+
+prom_http_errors_total = Counter(
+    'http_errors_total',
+    'Total HTTP errors',
+    ['method', 'endpoint', 'status_code']
 )
 
 # Initialize Flask App
@@ -144,6 +150,7 @@ with app.app_context():
 @app.before_request
 def before_request():
     request.start_time = time.time()
+    g.prom_start_time = time.time()
     current_span = trace.get_current_span()
     logger.info(
         "Incoming request",
@@ -159,26 +166,40 @@ def before_request():
 def after_request(response):
     if hasattr(request, 'start_time'):
         duration = time.time() - request.start_time
+        method = request.method
+        endpoint = request.endpoint or "unknown"
+        status_code = str(response.status_code)
 
-        # Record metrics
-        request_counter.add(1, {
-            "method": request.method,
-            "endpoint": request.endpoint or "unknown",
-            "status_code": str(response.status_code)
-        })
+        # Record Prometheus client metrics (exposed at /metrics)
+        # This is the ONLY source of metrics for Prometheus now
+        if hasattr(g, 'prom_start_time'):
+            prom_duration = time.time() - g.prom_start_time
+            prom_http_requests_total.labels(
+                method=method,
+                endpoint=endpoint,
+                status_code=status_code
+            ).inc()
 
-        request_duration.record(duration, {
-            "method": request.method,
-            "endpoint": request.endpoint or "unknown",
-            "status_code": str(response.status_code)
-        })
+            prom_http_request_duration_seconds.labels(
+                method=method,
+                endpoint=endpoint,
+                status_code=status_code
+            ).observe(prom_duration)
 
-        # Log response
+            # Track errors for SLI dashboards
+            if response.status_code >= 400:
+                prom_http_errors_total.labels(
+                    method=method,
+                    endpoint=endpoint,
+                    status_code=status_code
+                ).inc()
+
+        # Log response (with trace context for correlation)
         current_span = trace.get_current_span()
         logger.info(
             "Request completed",
             extra={
-                "method": request.method,
+                "method": method,
                 "path": request.path,
                 "status_code": response.status_code,
                 "duration_seconds": duration,
@@ -186,14 +207,6 @@ def after_request(response):
                 "span_id": format(current_span.get_span_context().span_id, '016x') if current_span else None
             }
         )
-
-        # Track errors for SLI
-        if response.status_code >= 400:
-            error_counter.add(1, {
-                "method": request.method,
-                "endpoint": request.endpoint or "unknown",
-                "status_code": str(response.status_code)
-            })
 
     return response
 

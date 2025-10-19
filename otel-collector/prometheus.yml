@@ -18,14 +18,11 @@ scrape_configs:
         labels:
           service: 'otel-collector'
 
-  # Scrape metrics exposed by OTEL Collector Prometheus exporter
-  - job_name: 'otel-collector-prometheus-exporter'
-    static_configs:
-      - targets: ['otel-collector:8889']
-        labels:
-          service: 'otel-metrics'
+  # NOTE: otel-collector-prometheus-exporter job removed
+  # Collector no longer exports Prometheus metrics (only traces/logs).
+  # Flask backend metrics are now the sole source via prometheus_client.
 
-  # Scrape Flask backend metrics (if exposed)
+  # Scrape Flask backend metrics
   - job_name: 'flask-backend'
     static_configs:
       - targets: ['backend:5000']

@@ -8,9 +8,31 @@ let tasks = [];
 // Initialize app
 document.addEventListener('DOMContentLoaded', () => {
     console.log('Task Manager App initialized');
+    setupDynamicLinks();
     loadTasks();
     setupEventListeners();
 });
+
+// Setup dynamic observability links based on current hostname
+function setupDynamicLinks() {
+    const host = window.location.hostname;
+
+    const links = {
+        'link-grafana': `http://${host}:3000`,
+        'link-prometheus': `http://${host}:9090`,
+        'link-tempo': `http://${host}:3200`,
+        'link-collector': `http://${host}:8888/metrics`
+    };
+
+    for (const [id, href] of Object.entries(links)) {
+        const link = document.getElementById(id);
+        if (link) {
+            link.href = href;
+        }
+    }
+
+    console.log('[INFO] Dynamic observability links configured for host:', host);
+}
 
 // Setup event listeners
 function setupEventListeners() {

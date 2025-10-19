@@ -62,12 +62,6 @@ exporters:
     tls:
       insecure: true
 
-  # Prometheus for metrics
-  prometheusremotewrite:
-    endpoint: http://prometheus:9090/api/v1/write
-    tls:
-      insecure: true
-
   # Loki for logs
   loki:
     endpoint: http://loki:3100/loki/api/v1/push
@@ -80,9 +74,10 @@ exporters:
     sampling_initial: 5
     sampling_thereafter: 200
 
-  # Prometheus exporter to expose metrics for scraping
-  prometheus:
-    endpoint: "0.0.0.0:8889"
+  # NOTE: Prometheus exporters removed - metrics now come ONLY from
+  # prometheus_client library exposed at Flask /metrics endpoint.
+  # This eliminates metric duplication and simplifies the pipeline.
+  # OTel traces and logs still flow through collector to Tempo/Loki.
 
 extensions:
   health_check:
@@ -100,10 +95,9 @@ service:
       processors: [memory_limiter, resource, attributes, batch]
       exporters: [otlp/tempo, logging]
 
-    metrics:
-      receivers: [otlp]
-      processors: [memory_limiter, resource, attributes, batch]
-      exporters: [prometheus, prometheusremotewrite]
+    # Metrics pipeline removed - Flask app now uses prometheus_client
+    # to expose metrics directly at /metrics endpoint for Prometheus scraping.
+    # This eliminates duplication with OTel SDK metrics.
 
     logs:
       receivers: [otlp]
