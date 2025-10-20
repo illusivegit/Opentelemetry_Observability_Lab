@@ -75,8 +75,8 @@ pipeline {
             export DOCKER_BUILDKIT=1
             ssh ${VM_USER}@${VM_IP} "
               cd ${VM_DIR} && \
-              PROJECT=${PROJECT} ./start-lab.sh
-              # Explicitly override the default PROJECT=lab variable inside start-lab.sh using Jenkins-provided environment variable "PROJECT=${PROJECT}"
+              PROJECT=${PROJECT} LAB_HOST=${VM_IP} ./start-lab.sh
+              # Explicitly override the default PROJECT=lab and LAB_HOST=localhost variables using Jenkins-provided values
 
             "
           '''

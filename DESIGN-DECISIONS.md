@@ -695,7 +695,7 @@ stage('Compose up (remote via SSH)') {
   sshagent(credentials: ['vm-ssh']) {
     sh '''
       ssh ${VM_USER}@${VM_IP} "
-        cd ${VM_DIR} && PROJECT=${PROJECT} ./start-lab.sh
+        cd ${VM_DIR} && PROJECT=${PROJECT} LAB_HOST=${VM_IP} ./start-lab.sh
       "
     '''
   }
@@ -843,14 +843,15 @@ If these values diverge, container names won't match between local and pipeline 
 **Option A: Script Accepts Environment Variable with Default (Chosen)**
 ```bash
 # start-lab.sh
-PROJECT="${PROJECT:-lab}"  # Use env var if set, default to "lab"
+PROJECT="${PROJECT:-lab}"      # Use env var if set, default to "lab"
+LAB_HOST="${LAB_HOST:-localhost}"
 ```
 
 **Jenkins invocation:**
 ```groovy
 ssh ${VM_USER}@${VM_IP} "
   cd ${VM_DIR} && \
-  PROJECT=${PROJECT} ./start-lab.sh
+  PROJECT=${PROJECT} LAB_HOST=${VM_IP} ./start-lab.sh
 "
 ```
 
@@ -923,15 +924,17 @@ docker compose -p ${PROJECT} up -d --build
 **After (Environment-Aware):**
 ```bash
 #!/bin/bash
-PROJECT="${PROJECT:-lab}"  # ← Use env var if set, default to "lab"
+PROJECT="${PROJECT:-lab}"      # ← Use env var if set, default to "lab"
+LAB_HOST="${LAB_HOST:-localhost}"
 echo "📦 Using project name: ${PROJECT}"
+echo "🌐 Using access host: ${LAB_HOST}"
 docker compose -p ${PROJECT} up -d --build
 ```
 
 **How It Works:**
-- `${PROJECT:-lab}` is Bash parameter expansion:
-  - If `PROJECT` environment variable exists and is non-empty: use it
-  - Otherwise: use default value `"lab"`
+- `${PROJECT:-lab}` / `${LAB_HOST:-localhost}` use Bash parameter expansion:
+  - If the environment variable exists and is non-empty: use it
+  - Otherwise: use the documented default (`"lab"` or `"localhost"`)
 
 **Usage Examples:**
 
@@ -939,6 +942,7 @@ docker compose -p ${PROJECT} up -d --build
 ```bash
 ./start-lab.sh
 # Output: 📦 Using project name: lab
+#         🌐 Using access host: localhost
 # Internally runs: docker compose -p lab up -d --build
 ```
 
@@ -946,17 +950,19 @@ docker compose -p ${PROJECT} up -d --build
 ```groovy
 environment {
   PROJECT = 'lab'
+  VM_IP   = '192.168.122.250'
 }
 stage('Deploy') {
   sh '''
     ssh ${VM_USER}@${VM_IP} "
       cd ${VM_DIR} && \
-      PROJECT=${PROJECT} ./start-lab.sh
+      PROJECT=${PROJECT} LAB_HOST=${VM_IP} ./start-lab.sh
     "
   '''
 }
 # Script receives PROJECT=lab from Jenkins
 # Output: 📦 Using project name: lab
+#         🌐 Using access host: 192.168.122.250
 # Internally runs: docker compose -p lab up -d --build
 ```
 
@@ -964,6 +970,7 @@ stage('Deploy') {
 ```bash
 PROJECT=test-env ./start-lab.sh
 # Output: 📦 Using project name: test-env
+#         🌐 Using access host: localhost
 # Runs: docker compose -p test-env up -d --build
 ```
 
