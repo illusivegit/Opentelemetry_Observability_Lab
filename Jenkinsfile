@@ -10,6 +10,7 @@ pipeline {
     VM_DIR     = '/home/deploy/lab/app'   // path on the VM
   }
   
+  stages {
     stage('Sanity on agent') {
       steps {
         sh '''
@@ -101,3 +102,4 @@ pipeline {
       echo "Hint: tail remote logs → docker --context ${DOCKER_CTX} compose --project-directory ${VM_DIR} -p ${PROJECT} logs --no-color --tail=200"
     }
   }
+}
