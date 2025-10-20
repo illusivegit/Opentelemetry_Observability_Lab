@@ -1,1042 +1,691 @@
-# OpenTelemetry Observability Lab
-## Full-Stack Monitoring with Traces, Metrics, and Logs
+# Production-Grade Observability: From On-Premises to Cloud
 
-A comprehensive, battle-tested hands-on lab demonstrating end-to-end observability using OpenTelemetry for a full-stack application. This lab is designed for DevSecOps and SRE engineers to understand distributed tracing, metrics collection, log aggregation, and SLI/SLO implementation.
+## A Proof of Concept for Real-World SRE Practice
 
-**Battle-Tested**: This lab was built through real troubleshooting scenarios, with all issues documented for your learning.
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Docker](https://img.shields.io/badge/Docker-Compose-2496ED?logo=docker)](https://www.docker.com/)
+[![OpenTelemetry](https://img.shields.io/badge/OpenTelemetry-Enabled-blue?logo=opentelemetry)](https://opentelemetry.io/)
+[![Grafana](https://img.shields.io/badge/Grafana-Dashboards-F46800?logo=grafana)](https://grafana.com/)
+[![Prometheus](https://img.shields.io/badge/Prometheus-Metrics-E6522C?logo=prometheus)](https://prometheus.io/)
 
 ---
 
-## Table of Contents
-- [Architecture Overview](#architecture-overview)
-- [Technology Stack](#technology-stack)
-- [What You'll Learn](#what-youll-learn)
-- [Prerequisites](#prerequisites)
+## 📖 Table of Contents
+
+- [Overview](#overview)
+- [What Makes This Different](#what-makes-this-different)
 - [Quick Start](#quick-start)
-- [Teardown & Cleanup](#teardown--cleanup)
-- [Understanding the Data Flow](#understanding-the-data-flow)
-- [Exploring Observability](#exploring-observability)
-- [SLI/SLO Implementation](#slislo-implementation)
-- [Lab Exercises](#lab-exercises)
-- [Troubleshooting](#troubleshooting)
-- [Additional Documentation](#additional-documentation)
+- [Documentation](#documentation)
+- [Architecture](#architecture)
+- [Technology Stack](#technology-stack)
+- [Learning Outcomes](#learning-outcomes)
+- [Roadmap](#roadmap)
+- [Contributing](#contributing)
 
 ---
 
-## Architecture Overview
+## Overview
+
+This project is a **production-grade observability stack** built on simulated on-premises infrastructure. It demonstrates end-to-end distributed tracing, metrics collection, and log aggregation using industry-standard tools.
+
+**But it's more than that.**
+
+This is **milestone 1** of the **On-Prem Domain**—a comprehensive learning path that builds infrastructure expertise from bare metal to hybrid cloud. Every component was built through trial, error, and iteration, with all failures documented for learning.
+
+### The Three Pillars of Observability
 
 ```
-┌─────────────────────────────────────────────────────────────────────┐
-│                            USER BROWSER                             │
-│  ┌──────────────────────────────────────────────────────────────┐  │
-│  │  Frontend (HTML/CSS/JS + OpenTelemetry Browser SDK)          │  │
-│  │  - Automatic fetch/XHR instrumentation                       │  │
-│  │  - Manual span creation for user interactions                │  │
-│  │  - Performance metrics                                        │  │
-│  └────────────────────────┬─────────────────────────────────────┘  │
-└────────────────────────────┼────────────────────────────────────────┘
-                             │
-                             │ HTTP Requests
-                             │ W3C Trace Context Headers
-                             ▼
-        ┌────────────────────────────────────────────────┐
-        │    Flask Backend (Python)                      │
-        │    ┌──────────────────────────────────────┐   │
-        │    │  OpenTelemetry Auto-Instrumentation  │   │
-        │    │  - Flask requests/responses          │   │
-        │    │  - SQLAlchemy queries                │   │
-        │    │  - Custom business logic spans       │   │
-        │    │  - Structured JSON logs              │   │
-        │    │  - Custom metrics (counters/histogr) │   │
-        │    └──────────────────┬───────────────────┘   │
-        │                       │                        │
-        │                       ▼                        │
-        │    ┌──────────────────────────────────────┐   │
-        │    │  SQLite Database                     │   │
-        │    │  - Task storage                      │   │
-        │    │  - Fully instrumented queries        │   │
-        │    └──────────────────────────────────────┘   │
-        └────────────────────┬───────────────────────────┘
-                             │
-                             │ OTLP/HTTP
-                             │ (Traces, Metrics, Logs)
-                             ▼
-        ┌─────────────────────────────────────────────────┐
-        │   OpenTelemetry Collector                       │
-        │   ┌─────────────────────────────────────────┐   │
-        │   │ Receivers: OTLP (gRPC + HTTP)           │   │
-        │   │ Processors: Batch, Resource, Attributes │   │
-        │   │ Exporters: Tempo, Prometheus, Loki      │   │
-        │   └─────────────────────────────────────────┘   │
-        └──┬──────────────────┬──────────────────┬────────┘
-           │                  │                  │
-           │ Traces           │ Metrics          │ Logs
-           ▼                  ▼                  ▼
-   ┌──────────────┐  ┌──────────────┐  ┌──────────────┐
-   │    Tempo     │  │  Prometheus  │  │     Loki     │
-   │   (Traces)   │  │  (Metrics)   │  │    (Logs)    │
-   └──────┬───────┘  └──────┬───────┘  └──────┬───────┘
-          │                 │                  │
-          └─────────────────┼──────────────────┘
-                            │
-                            ▼
-                   ┌─────────────────┐
-                   │     Grafana     │
-                   │  - Dashboards   │
-                   │  - Trace UI     │
-                   │  - Log Explorer │
-                   │  - SLI/SLO      │
-                   └─────────────────┘
+┌──────────────────────────────────────────────────────────────┐
+│  TRACES (OpenTelemetry)                                      │
+│  • Browser → Backend → Database correlation                  │
+│  • Parent-child span relationships                           │
+│  • W3C Trace Context propagation                             │
+│  • Export: OTLP → Tempo                                      │
+└──────────────────────────────────────────────────────────────┘
+
+┌──────────────────────────────────────────────────────────────┐
+│  METRICS (Prometheus)                                        │
+│  • Request rates, error rates, latency percentiles           │
+│  • SLI/SLO dashboards (availability, P95 latency)            │
+│  • Database query performance tracking                       │
+│  • Export: /metrics → Prometheus scrape                      │
+└──────────────────────────────────────────────────────────────┘
+
+┌──────────────────────────────────────────────────────────────┐
+│  LOGS (Loki via OpenTelemetry)                               │
+│  • Structured JSON logging                                   │
+│  • Automatic trace_id/span_id injection                      │
+│  • Log-to-trace correlation                                  │
+│  • Export: OTLP → Loki                                       │
+└──────────────────────────────────────────────────────────────┘
 ```
 
----
+### Application Stack
 
-## Technology Stack
-
-### Application Layer
-- **Frontend**: HTML5, CSS3, Vanilla JavaScript
-- **Backend**: Flask 3.0 (Python)
-- **ORM**: Flask-SQLAlchemy
-- **Database**: SQLite
-
-### Observability Stack
-- **Instrumentation**: OpenTelemetry (Python SDK 1.22.0 + Browser SDK 1.19.0)
-- **Collector**: OpenTelemetry Collector Contrib **v0.96.0**
-- **Traces**: Grafana Tempo 2.3.1
-- **Metrics**: Prometheus 2.48.1
-- **Logs**: Grafana Loki 2.9.3
-- **Visualization**: Grafana 10.2.3
-
-### Infrastructure
-- **Containerization**: Docker & Docker Compose
-- **Networking**: Bridge network for service communication
+- **Frontend:** Nginx reverse proxy serving static HTML/JS
+- **Backend:** Flask (Python 3.11) with full OpenTelemetry instrumentation
+- **Database:** SQLite (migrating to PostgreSQL in Phase 3)
+- **Observability:** OpenTelemetry Collector, Tempo, Prometheus, Loki, Grafana
 
 ---
 
-## What You'll Learn
+## What Makes This Different
 
-### 1. Distributed Tracing
-- End-to-end request tracing from browser to database
-- W3C Trace Context propagation across services
-- Parent-child span relationships
-- Span attributes and events
-- Exception tracking and error propagation
+### 🏗️ Built on Simulated On-Premises Infrastructure
 
-### 2. Metrics & SLIs
-- Request rate (throughput)
-- Error rate (reliability)
-- Response time percentiles (latency - p50, p95, p99)
-- Database query performance
-- Custom business metrics
+Not cloud. Not managed services. **Bare metal virtualization** using KVM/QEMU/libvirt on Debian 13.
 
-### 3. Log Aggregation
-- Structured JSON logging
-- Trace-log correlation
-- Log levels and filtering
-- Contextual logging with trace IDs
+**Why?**
+- Understand infrastructure from the ground up
+- Learn what cloud abstractions hide (networking, storage, orchestration)
+- Zero recurring costs (one-time hardware investment)
+- Directly applicable to enterprise on-prem environments
 
-### 4. SLI/SLO Implementation
-- **Availability SLI**: % of successful requests (target: >99%)
-- **Latency SLI**: p95 response time (target: <500ms)
-- **Error Budget**: Tracking and visualization
-- Real-time SLO dashboards
+### 🔄 Deployed via CI/CD Pipeline
 
-### 5. Correlation & Context
-- Linking traces to logs
-- Linking traces to metrics
-- Following requests across all three layers
-- Service dependency mapping
+Automated deployment through **containerized Jenkins** with Docker agents, SSH-based deployment, and HashiCorp Vault for secrets management.
 
----
+**Pipeline Features:**
+- Git-based source control
+- Automated builds with Docker Buildkit
+- Remote deployment via SSH + rsync
+- **Key-only SSH authentication** (ED25519, production-grade security)
+- Health check validation
+- Smoke tests
 
-## Prerequisites
+**Security First:**
+- Password authentication disabled on all VMs
+- Industry best practice implementation
+- Future hardening planned: fail2ban, UFW firewall, 2FA
 
-- Docker Engine 20.10+
-- Docker Compose 2.0+
-- 4GB+ available RAM
-- Ports available: 3000, 3100, 3200, 4317, 4318, 5000, 8080, 8888, 9090
+See: [ARCHITECTURE.md - CI/CD Pipeline Architecture](ARCHITECTURE.md#cicd-pipeline-architecture)
+
+### 📊 Production-Ready Observability
+
+Not a toy demo. This stack implements:
+- **SLI/SLO tracking** (service availability >99%, P95 latency <500ms)
+- **Distributed tracing** across all tiers (browser → backend → database)
+- **Trace-log correlation** (click trace_id in logs → jump to full trace)
+- **Pre-built Grafana dashboards** (SLI/SLO, end-to-end tracing)
+- **Error budget visualization** (track SLO compliance)
+
+### 📚 Comprehensive Documentation
+
+Over **100,000 words** of documentation covering:
+- **ARCHITECTURE.md:** Complete system design from hypervisor to application (47,000+ words)
+- **DESIGN-DECISIONS.md:** All architectural choices, trade-offs, and rationale
+- **JOURNEY.md:** The story of building this (struggles, breakthroughs, lessons)
+- **IMPLEMENTATION-GUIDE.md:** Technical deep-dive with troubleshooting
+- **docs/deployment-verification.md:** Step-by-step deployment validation
+
+### 🧪 Battle-Tested
+
+Every error message was encountered, debugged, and documented:
+- "Working outside of application context" (Flask lifecycle)
+- "502 Bad Gateway" (Nginx DNS caching)
+- "Database not found" (container filesystems)
+- "Metric duplication" (OTel SDK vs. Prometheus client)
+
+See: [JOURNEY.md](JOURNEY.md) for the complete story.
 
 ---
 
 ## Quick Start
 
-### Option 1: Automated Start (Recommended)
+### Prerequisites
 
-The easiest way to start the lab:
+- **Docker Engine** 20.10+ and **Docker Compose** 2.0+
+- **4GB+ RAM** available
+- **Ports available:** 3000, 3100, 3200, 4317, 4318, 5000, 8080, 9090
+
+### Deployment Options
+
+Choose the deployment method that fits your learning goals:
+
+---
+
+#### Option 1: Startup Script (Recommended - Aligned with Jenkins Pipeline)
+
+**Why this option?** Follows the same deployment pattern as the production Jenkins pipeline, using project naming for better container organization.
 
 ```bash
-# Navigate to lab directory
-cd otel-observability-lab
+# Clone repository
+git clone https://github.com/illusivegit/Opentelemetry_Observability_Lab.git
+cd Opentelemetry_Observability_Lab
 
-# Run the startup script
+# Run startup script
+chmod +x start-lab.sh
 ./start-lab.sh
 ```
 
-The script will:
-- ✅ Check Docker is running
-- ✅ Check docker compose is available
-- ✅ Clean up any existing containers
-- ✅ Start all services
-- ✅ Wait for services to initialize
-- ✅ Perform health checks
-- ✅ Display access URLs and helpful tips
+**What it does:**
+- Sets `PROJECT="lab"` for organized container naming (matches Jenkins pipeline)
+- Runs: `docker compose -p lab up -d --build`
+- Validates all service health checks
+- Provides clear status output
 
-**Services Started:**
-- Flask Backend (port 5000)
-- Frontend (port 8080)
-- OpenTelemetry Collector (ports 4317, 4318, 13133)
-- Grafana Tempo (port 3200)
-- Prometheus (port 9090)
-- Grafana Loki (port 3100)
-- Grafana (port 3000)
-
-### Option 2: Manual Start
-
-If you prefer manual control:
+**Managing containers with project name:**
 
 ```bash
-# Navigate to lab directory
-cd otel-observability-lab
+# View logs
+docker compose -p lab logs -f backend
 
-# Start all services
+# Stop all services
+docker compose -p lab down
+
+# Restart a specific service
+docker compose -p lab restart backend
+
+# Check status
+docker compose -p lab ps
+```
+
+**Design Decision:** Using `-p lab` creates a namespace for all containers (e.g., `lab-backend-1`, `lab-frontend-1`), preventing naming conflicts with other Docker Compose projects and matching the production pipeline pattern. See [DESIGN-DECISIONS.md](DESIGN-DECISIONS.md) for full rationale.
+
+---
+
+#### Option 2: Manual Docker Compose with Project Name (Same Standard as Pipeline)
+
+If you prefer manual control but want to follow the same standard:
+
+```bash
+# Clone repository
+git clone https://github.com/illusivegit/Opentelemetry_Observability_Lab.git
+cd Opentelemetry_Observability_Lab
+
+# Start with project name (matches Jenkins pipeline and startup script)
+export DOCKER_BUILDKIT=1
+docker compose -p lab up -d --build
+
+# Check status
+docker compose -p lab ps
+
+# View logs
+docker compose -p lab logs -f
+```
+
+**Note:** You **must** include `-p lab` in all subsequent commands (logs, down, restart) for proper container management.
+
+---
+
+#### Option 3: Simple Docker Compose (No Project Name)
+
+If you prefer the simplest approach without project naming:
+
+```bash
+# Clone repository
+git clone https://github.com/illusivegit/Opentelemetry_Observability_Lab.git
+cd Opentelemetry_Observability_Lab
+
+# Start all services (uses directory name as project)
 docker compose up -d
 
-# Wait ~30 seconds for initialization
-
-# Check service health
+# Check status
 docker compose ps
-
-# View logs (optional)
-docker compose logs -f
 ```
 
-### Access the Application
-
-Once started (either method), access:
-- **Frontend**: http://localhost:8080
-- **Grafana**: http://localhost:3000 (anonymous login enabled)
-- **Prometheus**: http://localhost:9090
-- **Tempo**: http://localhost:3200/ready
-- **Loki**: http://localhost:3100/ready
-- **Collector Health**: http://localhost:13133
+**Trade-off:** Container names will use the directory name as prefix (e.g., `opentelemetry_observability_lab-backend-1`). This works fine but doesn't match the standardized pipeline pattern.
 
 ---
 
-## Teardown & Cleanup
+#### Option 4: Jenkins Pipeline Deployment (Full CI/CD Experience)
 
-### Quick Teardown
+**For the complete production deployment experience:**
 
-Stop and remove all containers:
+See: [ARCHITECTURE.md - CI/CD Pipeline Architecture](ARCHITECTURE.md#cicd-pipeline-architecture)
 
+1. Set up Jenkins controller + Docker agent (see docs)
+2. Configure VM target (SSH keys, Docker daemon)
+3. Run pipeline: Checkout → Sync → Deploy → Smoke Tests
+
+**Pipeline deploys using:**
 ```bash
-docker compose down
+ssh ${VM_USER}@${VM_IP} "
+  cd ${VM_DIR} && \
+  docker compose -p lab up -d --build && \
+  docker compose -p lab ps
+"
 ```
 
-This removes:
-- All containers
-- The default network
-- **Keeps**: Named volumes (data persists)
+---
 
-### Complete Cleanup
+### Verify Deployment
 
-To remove **everything** including stored data:
+**Important:** Replace `localhost` with your VM's IP address if deploying to a virtual machine.
 
+**For VM deployments:** If you deployed to a VM (e.g., via Jenkins pipeline or manual SSH), replace `localhost` with your VM's IP address:
+- Example: `http://192.168.122.250:8080` instead of `http://localhost:8080`
+
+**Application:**
+- Frontend: `http://<VM_IP>:8080` (or `http://localhost:8080` for local)
+- Backend API: `http://<VM_IP>:5000/api/tasks`
+
+**Observability Stack:**
+- Grafana: `http://<VM_IP>:3000` (anonymous login enabled)
+- Prometheus: `http://<VM_IP>:9090`
+- Tempo: `http://<VM_IP>:3200/ready`
+- Loki: `http://<VM_IP>:3100/ready`
+
+**Generate Traffic:**
+1. Open `http://<VM_IP>:8080` (use your VM's IP or `localhost`)
+2. Create a few tasks (click "Add Task")
+3. Navigate to Grafana → Dashboards → "SLI/SLO Dashboard - Task Manager"
+4. See metrics, traces, and logs populate
+
+**Detailed Verification Guide:** [docs/deployment-verification.md](docs/deployment-verification.md)
+
+---
+
+## Documentation
+
+### Core Documents
+
+| Document | Purpose | Pages |
+|----------|---------|-------|
+| **[ARCHITECTURE.md](ARCHITECTURE.md)** | Complete system architecture from infrastructure to application | 47,000 words |
+| **[DESIGN-DECISIONS.md](DESIGN-DECISIONS.md)** | All architectural decisions with trade-offs and rationale | 15,000 words |
+| **[JOURNEY.md](JOURNEY.md)** | The story of building this (failures, breakthroughs, lessons) | 12,000 words |
+| **[IMPLEMENTATION-GUIDE.md](IMPLEMENTATION-GUIDE.md)** | Technical deep-dive with troubleshooting scenarios | 47,000 words |
+| **[docs/deployment-verification.md](docs/deployment-verification.md)** | Step-by-step post-deployment validation | 4,000 words |
+| **[docs/nginx-proxy-pass-options.md](docs/nginx-proxy-pass-options.md)** | Nginx reverse proxy design (proxy vs. CORS) | 1,500 words |
+
+**Total:** 125,000+ words of comprehensive documentation
+
+### Quick References
+
+**Common Commands:**
 ```bash
-# Remove containers, networks, AND volumes
-docker compose down -v
-```
-
-This removes:
-- All containers
-- The default network
-- All named volumes:
-  - `backend-data` (SQLite database)
-  - `tempo-data` (trace storage)
-  - `loki-data` (log storage)
-  - `prometheus-data` (metrics storage)
-  - `grafana-data` (dashboard configs)
-
-⚠️ **Warning**: Using `-v` flag will delete all telemetry data. Use this for a fresh start.
-
-### Partial Cleanup
-
-Rebuild specific service:
-
-```bash
-# Rebuild backend (useful after code changes)
-docker compose build --no-cache backend
-docker compose up -d backend
+# View logs
+docker compose logs -f backend
+docker compose logs -f otel-collector
 
 # Restart specific service
-docker compose restart otel-collector
+docker compose restart backend
 
-# View logs for debugging
-docker compose logs -f backend
-```
+# Check service health
+curl http://localhost:13133  # OTEL Collector healthcheck
+curl http://localhost:5000/health  # Backend health
 
-### Clean Restart
+# Tear down stack
+docker compose down
 
-For a completely fresh environment:
-
-```bash
-# Full cleanup
+# Tear down with volume cleanup (fresh start)
 docker compose down -v
-
-# Remove any orphaned containers
-docker system prune -f
-
-# Start fresh
-./start-lab.sh
 ```
 
----
+**Grafana Dashboards:**
+- **SLI/SLO Dashboard:** Service availability, P95 latency, error rates, DB performance
+- **End-to-End Tracing:** Distributed trace visualization, service dependency maps
 
-## Understanding the Data Flow
+**Prometheus Queries (SLIs):**
+```promql
+# Service Availability
+100 * (1 - (sum(rate(http_errors_total[5m])) / sum(rate(http_requests_total[5m]))))
 
-### Request Journey: Frontend → Backend → Database → Response
+# P95 Response Time
+histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket[5m])) by (le))
 
-#### Step 1: User Interaction (Browser)
-```javascript
-// User clicks "Add Task"
-// OpenTelemetry Browser SDK automatically:
-1. Creates a root span for the fetch request
-2. Adds W3C traceparent header
-3. Sends trace to OTEL Collector
-4. Records performance timing
+# Database P95 Latency
+histogram_quantile(0.95, sum(rate(db_query_duration_seconds_bucket[5m])) by (le, operation))
 ```
 
-#### Step 2: Backend Processing (Flask)
-```python
-# app.py:146-170
-# Flask receives request with trace context
-1. FlaskInstrumentor extracts trace context from headers
-2. Creates child span linked to browser span
-3. Executes business logic (create_task)
-4. SQLAlchemyInstrumentor wraps database query
-5. Creates database span with query details
-6. Logs structured JSON with trace_id and span_id
-7. Records custom metrics (request count, duration)
-8. Returns response
-```
-
-#### Step 3: Database Layer (SQLite)
-```python
-# Automatic instrumentation captures:
-1. SQL query text
-2. Query duration
-3. Database name
-4. Operation type (INSERT, SELECT, UPDATE, DELETE)
-```
-
-#### Step 4: Observability Pipeline
-```yaml
-# otel-collector-config.yml
-1. Collector receives telemetry via OTLP
-2. Batch processor aggregates data
-3. Resource processor adds metadata
-4. Exporters send to backends:
-   - Traces → Tempo
-   - Metrics → Prometheus
-   - Logs → Loki
-```
-
----
-
-## Exploring Observability
-
-### Exercise 1: Create Your First Task
-
-1. Open http://localhost:8080
-2. Create a new task:
-   - Title: "Test Observability"
-   - Description: "Learning OpenTelemetry"
-3. Click "Add Task"
-
-**Now let's trace this request:**
-
-### Finding the Trace in Grafana
-
-1. Open Grafana: http://localhost:3000
-2. Navigate to **Explore** (compass icon)
-3. Select **Tempo** datasource
-4. Click **Search** tab
-5. Look for recent traces with:
-   - Service Name: `flask-backend`
-   - Span Name: `create_task`
-
-**What you'll see:**
-```
-Browser Span (frontend-browser)
-  └─> HTTP POST /api/tasks (flask-backend)
-       └─> create_task (business logic)
-            └─> INSERT INTO tasks (SQLAlchemy)
-```
-
-### Understanding Span Details
-
-Click on any span to see:
-- **Duration**: How long the operation took
-- **Attributes**:
-  - `http.method`: POST
-  - `http.route`: /api/tasks
-  - `http.status_code`: 201
-  - `task.title`: "Test Observability"
-  - `db.query.duration`: Query execution time
-- **Events**: Exception details if errors occurred
-- **Logs**: Link to correlated log entries
-
----
-
-### Exercise 2: View Correlated Logs
-
-1. In the trace view, find the backend span
-2. Click on "Logs for this span" link
-3. You'll see structured JSON logs:
-
-```json
-{
-  "timestamp": "2025-10-13T11:34:32.029Z",
-  "level": "INFO",
-  "message": "Created new task 6: Test task for label verification",
-  "trace_id": "542b72fbc89a2f3193ad6a35e5bf6b39",
-  "span_id": "e350cf8075afe40a",
-  "service.name": "flask-backend"
-}
-```
-
-**Alternative: Query Logs Directly in Loki**
-
-Navigate to **Explore** → **Loki** datasource and try:
-
+**Loki Log Queries:**
 ```logql
-# All logs from flask-backend
+# All logs from backend
 {service_name="flask-backend"}
 
 # Filter by log level
 {service_name="flask-backend", level="ERROR"}
 
-# Search within logs
-{service_name="flask-backend"} |= "Created new task"
-
-# Filter by trace ID
-{service_name="flask-backend"} | json | trace_id="542b72fbc89a2f3193ad6a35e5bf6b39"
+# Search for specific trace
+{service_name="flask-backend"} | json | trace_id="a1b2c3d4e5f6789..."
 ```
 
-**Key Points:**
-- Trace ID links logs to distributed trace
-- All logs from this request are correlated
-- JSON structure allows easy filtering
-- **service_name label** enables powerful filtering (added via attribute hints)
-
----
-
-### Exercise 3: Analyze Metrics & SLIs
-
-1. Navigate to **Dashboards** → **SLI/SLO Dashboard - Task Manager**
-
-**Key Metrics to Observe:**
-
-#### Service Availability (SLI)
-```promql
-100 * (1 - (sum(rate(http_errors_total[5m])) / sum(rate(http_requests_total[5m]))))
-```
-- **Target**: >99%
-- **Current**: Should show 100% for successful requests
-
-#### P95 Response Time (SLI)
-```promql
-histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket[5m])) by (le))
-```
-- **Target**: <500ms
-- **What it means**: 95% of requests complete within this time
-
-#### Request Rate by Endpoint
-- Shows traffic distribution
-- Identify hot paths
-- Capacity planning insights
-
-#### Error Rate by Endpoint
-- Percentage of failed requests per endpoint
-- Helps identify problematic areas
-
----
-
-### Exercise 4: Simulate Performance Issues
-
-The lab includes testing endpoints to observe system behavior under stress.
-
-#### Test 1: Slow Request
-```bash
-# In the browser, click "Simulate Slow Request"
-# Or use curl:
-curl http://localhost:5000/api/simulate-slow?delay=2
-```
-
-**Observe in Grafana:**
-1. Go to **Explore** → **Tempo**
-2. Find the slow trace
-3. Notice the 2-second span duration
-4. Check the P95 latency metric spike
-
-#### Test 2: Error Simulation
-```bash
-# Click "Simulate Error" in the UI
-# Or use curl:
-curl http://localhost:5000/api/simulate-error
-```
-
-**Observe:**
-1. Trace shows error status (StatusCode.ERROR)
-2. Exception details in span events
-3. Error counter metric increases
-4. Service availability SLI decreases
-
-#### Test 3: Bulk Operations
-```bash
-# Click "Create Bulk Tasks (5)"
-```
-
-**Observe:**
-1. Multiple parallel traces
-2. Database query patterns
-3. Request rate spike
-4. Performance under concurrent load
-
----
-
-## SLI/SLO Implementation
-
-### Defined SLIs
-
-#### 1. Availability SLI
-**Definition**: Percentage of successful HTTP requests
-```python
-# Tracked in app.py:142-150
-request_counter.add(1, {
-    "method": request.method,
-    "endpoint": request.endpoint,
-    "status_code": str(response.status_code)
-})
-```
-
-**Formula**:
-```
-Availability = (Total Requests - Error Requests) / Total Requests * 100
-```
-
-**SLO Target**: 99.9% (3 nines)
-- **Error Budget**: 0.1% = ~43 minutes downtime/month
-
-#### 2. Latency SLI
-**Definition**: P95 response time for all requests
-```python
-# Tracked in app.py:146-150
-request_duration.record(duration, {
-    "method": request.method,
-    "endpoint": request.endpoint,
-    "status_code": str(response.status_code)
-})
-```
-
-**SLO Target**: 95% of requests < 500ms
-
-**Error Budget**: 5% of requests can exceed 500ms
-
-#### 3. Database Performance SLI
-**Definition**: P95 database query latency
-```python
-# Tracked in app.py:178, 203, 233, 264, 294
-database_query_duration.record(query_duration_time, {
-    "operation": "select|insert|update|delete",
-    "table": "tasks"
-})
-```
-
-**SLO Target**: 95% of queries < 100ms
-
----
-
-### Monitoring SLO Compliance
-
-#### Real-Time Dashboard
-The **SLI/SLO Dashboard** provides:
-- Current SLI values vs targets
-- Historical trends
-- Error budget burn rate
-- Alert thresholds (visual indicators)
-
-#### Alert Rules (Production-Ready)
-```yaml
-# Example Prometheus alert rules
-groups:
-  - name: slo_alerts
-    rules:
-      - alert: HighErrorRate
-        expr: |
-          (sum(rate(http_errors_total[5m])) / sum(rate(http_requests_total[5m]))) > 0.01
-        for: 5m
-        annotations:
-          summary: "Error rate above 1% (SLO breach)"
-
-      - alert: HighLatency
-        expr: |
-          histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket[5m])) by (le)) > 0.5
-        for: 5m
-        annotations:
-          summary: "P95 latency above 500ms (SLO breach)"
-```
-
----
-
-## Lab Exercises
-
-### Exercise 1: Trace a Complete CRUD Workflow
-
-**Objective**: Follow a single task through its entire lifecycle
-
-1. **Create** a task
-2. **Read** the task (refresh the page)
-3. **Update** the task (mark as complete)
-4. **Delete** the task
-
-**Tasks**:
-- Find all 4 operations in Grafana Tempo
-- Compare span durations
-- Identify which operation is slowest
-- Examine database query differences
-
-**Questions to Answer**:
-- How many spans are created for each operation?
-- What's the relationship between HTTP spans and DB spans?
-- How does trace context propagate?
-
----
-
-### Exercise 2: Identify Performance Bottlenecks
-
-**Objective**: Use traces to find slow operations
-
-1. Create 10 tasks quickly
-2. Navigate to Grafana → Explore → Tempo
-3. Use TraceQL query:
+**Tempo Trace Queries (TraceQL):**
 ```traceql
-{duration > 100ms}
-```
-
-**Analysis**:
-- Which spans contribute most to latency?
-- Is the slowness in network, application, or database?
-- How would you optimize the slowest span?
-
----
-
-### Exercise 3: Debug an Error
-
-**Objective**: Use observability to root-cause an error
-
-1. Click "Simulate Error" button
-2. Find the error trace in Tempo
-3. Examine the span with error status
-
-**Tasks**:
-- What's the error message?
-- What span recorded the exception?
-- Find the correlated log entry
-- Identify the line of code that failed
-
-**Hint**: Look at span events and exception details
-
----
-
-### Exercise 4: Calculate Error Budget
-
-**Objective**: Understand SLO math and error budgets
-
-**Scenario**: Your SLO is 99.9% availability over 30 days
-
-1. Total time: 30 days = 43,200 minutes
-2. Error budget: 0.1% = 43.2 minutes
-
-**Exercise**:
-1. Generate 1000 requests (use bulk task creation multiple times)
-2. Simulate 5 errors
-3. Calculate actual availability:
-   ```
-   (1000 - 5) / 1000 = 99.5%
-   ```
-4. Did you breach SLO?
-5. How much error budget remains?
-
----
-
-### Exercise 5: Service Dependency Mapping
-
-**Objective**: Visualize service relationships
-
-1. Generate various types of requests
-2. Navigate to **End-to-End Tracing Dashboard**
-3. View the **Service Dependency Map**
-
-**Observe**:
-- Services in your architecture
-- Request rates between services
-- Error rates on connections
-- Latency on each edge
-
----
-
-## Troubleshooting
-
-### Traces Not Appearing
-
-**Check 1: OTEL Collector Health**
-```bash
-curl http://localhost:13133
-# Should return healthy status
-```
-
-**Check 2: Backend Sending Traces**
-```bash
-docker compose logs backend | grep -i trace
-```
-
-**Check 3: Tempo Receiving Data**
-```bash
-curl http://localhost:3200/api/search
-```
-
-**Fix**: Restart services
-```bash
-docker compose restart otel-collector backend
-```
-
----
-
-### Metrics Not Showing in Grafana
-
-**Check 1: Prometheus Targets**
-1. Open http://localhost:9090/targets
-2. All targets should be "UP"
-
-**Check 2: OTEL Collector Metrics Endpoint**
-```bash
-curl http://localhost:8889/metrics
-```
-
-**Check 3: Query Prometheus**
-```bash
-curl 'http://localhost:9090/api/v1/query?query=http_requests_total'
-```
-
----
-
-### Logs Missing
-
-**Check Loki**:
-```bash
-curl http://localhost:3100/ready
-```
-
-**Query Logs**:
-```bash
-# Check available labels
-curl -s "http://localhost:3100/loki/api/v1/labels" | jq
-
-# Query logs by service_name
-curl -G -s "http://localhost:3100/loki/api/v1/query" \
-  --data-urlencode 'query={service_name="flask-backend"}' | jq
-```
-
-**Available Loki Labels** (after attribute hints configuration):
-- `service_name` - Service identifier
-- `service_instance_id` - Container ID
-- `deployment_environment` - Environment (lab, dev, prod)
-- `level` - Log level (INFO, ERROR, etc.)
-- `exporter` - OTLP exporter
-- `instance` - Instance hostname
-- `job` - Job name
-
----
-
-### Frontend Not Loading
-
-**Check 1: Frontend Container**
-```bash
-docker compose logs frontend
-```
-
-**Check 2: CORS Issues**
-- Open browser console (F12)
-- Look for CORS errors
-- Verify OTEL Collector CORS config
-
-**Fix**: Rebuild frontend
-```bash
-docker compose up -d --force-recreate frontend
-```
-
----
-
-## Advanced Topics
-
-### Custom Instrumentation
-
-Add your own spans to the Flask backend:
-
-```python
-from opentelemetry import trace
-
-tracer = trace.get_tracer(__name__)
-
-@app.route('/api/custom')
-def custom_endpoint():
-    with tracer.start_as_current_span("custom_operation") as span:
-        span.set_attribute("custom.attribute", "value")
-        # Your business logic
-        return jsonify({"status": "ok"})
-```
-
-### Adding Custom Metrics
-
-```python
-from opentelemetry import metrics
-
-meter = metrics.get_meter(__name__)
-custom_counter = meter.create_counter(
-    name="custom_events_total",
-    description="Count of custom events"
-)
-
-custom_counter.add(1, {"event_type": "user_action"})
-```
-
-### TraceQL Queries
-
-Powerful trace searching in Grafana:
-
-```traceql
-# Find slow database queries
-{span.db.query.duration > 50ms}
+# Find slow requests (>500ms)
+{duration > 500ms}
 
 # Find errors in specific endpoint
 {span.http.route = "/api/tasks" && status = error}
 
-# Find traces with specific attribute
-{span.task.completed = true}
-
-# Complex query
-{duration > 500ms && span.http.status_code >= 500}
+# Find slow database queries
+{span.db.query.duration > 50ms}
 ```
 
 ---
 
-## Key Takeaways
+## Architecture
 
-### 1. Observability != Monitoring
-- **Monitoring**: Known unknowns (dashboards, alerts)
-- **Observability**: Unknown unknowns (ad-hoc queries, exploration)
+### High-Level Overview
 
-### 2. Three Pillars Work Together
-- **Traces**: Show the path and timing
-- **Metrics**: Show the trends and aggregates
-- **Logs**: Show the details and context
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                   PHYSICAL HOST (Debian 13)                     │
+│  ┌───────────────────────────────────────────────────────────┐  │
+│  │            KVM/QEMU/Libvirt Hypervisor                    │  │
+│  │  ┌─────────────────────────────────────────────────────┐  │  │
+│  │  │  VM: 192.168.122.250 (Application VM)               │  │  │
+│  │  │  • Docker Engine                                     │  │  │
+│  │  │  • Observability Stack (7 containers)                │  │  │
+│  │  └─────────────────────────────────────────────────────┘  │  │
+│  │  ┌─────────────────────────────────────────────────────┐  │  │
+│  │  │  VM: 192.168.122.x (Jenkins VM)                     │  │  │
+│  │  │  • Jenkins Controller                                │  │  │
+│  │  │  • Docker Agents                                     │  │  │
+│  │  │  • HashiCorp Vault                                   │  │  │
+│  │  └─────────────────────────────────────────────────────┘  │  │
+│  └───────────────────────────────────────────────────────────┘  │
+└─────────────────────────────────────────────────────────────────┘
+```
 
-### 3. Context is Everything
-- Trace IDs correlate across pillars
-- Span context propagates across services
-- Structured data enables powerful queries
+### Container Architecture (Application VM)
 
-### 4. SLIs Drive SRE Practice
-- Measure what users care about
-- Error budgets enable risk-taking
-- Data-driven decision making
+```
+┌─────────────────────────────────────────────────────────────────┐
+│  Docker Network: otel-network (bridge)                          │
+│                                                                  │
+│  ┌──────────────┐      ┌──────────────┐      ┌──────────────┐  │
+│  │  Frontend    │      │  Backend     │      │  OTel        │  │
+│  │  (Nginx)     │─────▶│  (Flask)     │─────▶│  Collector   │  │
+│  │  Port: 8080  │      │  Port: 5000  │      │  Port: 4318  │  │
+│  └──────────────┘      └──────┬───────┘      └──────┬───────┘  │
+│                               │                     │          │
+│                               ▼                     ▼          │
+│                        ┌──────────────┐      ┌──────────────┐  │
+│                        │  SQLite      │      │  Tempo       │  │
+│                        │  Database    │      │  (Traces)    │  │
+│                        └──────────────┘      │  Prometheus  │  │
+│                                              │  (Metrics)   │  │
+│                                              │  Loki (Logs) │  │
+│                                              └──────┬───────┘  │
+│                                                     │          │
+│                                                     ▼          │
+│                                              ┌──────────────┐  │
+│                                              │  Grafana     │  │
+│                                              │  Port: 3000  │  │
+│                                              └──────────────┘  │
+└─────────────────────────────────────────────────────────────────┘
+```
 
-### 5. Instrumentation Strategy
-- Automatic instrumentation: Quick start
-- Manual spans: Business-specific insights
-- Custom metrics: Domain-specific SLIs
+**Key Design Decisions:**
 
----
+1. **Nginx Reverse Proxy** (not CORS headers) for `/api/*` routing
+   - Same-origin requests eliminate preflight overhead
+   - Production-standard architecture
+   - See: [DESIGN-DECISIONS.md - DD-003](DESIGN-DECISIONS.md#dd-003-frontend-backend-communication-nginx-proxy-vs-cors-headers)
 
-## Next Steps
+2. **Dynamic DNS Resolution** in Nginx (not static hostname)
+   - Handles backend container restarts gracefully
+   - No 502 errors on IP changes
+   - See: [DESIGN-DECISIONS.md - DD-007](DESIGN-DECISIONS.md#dd-007-nginx-dns-resolution-static-vs-dynamic)
 
-### Extend the Lab
+3. **Prometheus Client for Metrics** (not OTel SDK metrics)
+   - Eliminates duplication (single source of truth)
+   - OTel reserved for traces and logs (distributed context)
+   - See: [DESIGN-DECISIONS.md - DD-006](DESIGN-DECISIONS.md#dd-006-metric-instrumentation-prometheus-client-vs-otel-sdk-metrics)
 
-1. **Add Authentication**
-   - Instrument login flows
-   - Track user sessions in spans
-   - Monitor authentication failures
-
-2. **Implement Caching**
-   - Add Redis cache layer
-   - Instrument cache hits/misses
-   - Measure cache effectiveness
-
-3. **Add Message Queue**
-   - Introduce async processing
-   - Trace across message boundaries
-   - Monitor queue depth and lag
-
-4. **Multi-Service Architecture**
-   - Split into microservices
-   - Implement service mesh
-   - Trace across service boundaries
-
-### Production Considerations
-
-1. **Sampling**
-   - Implement tail-based sampling
-   - Reduce trace volume
-   - Preserve interesting traces
-
-2. **Security**
-   - Sanitize sensitive data
-   - Implement RBAC in Grafana
-   - Secure OTLP endpoints
-
-3. **Scalability**
-   - Use Tempo S3 backend
-   - Scale Prometheus with Thanos
-   - Implement Loki distributed mode
-
-4. **Cost Optimization**
-   - Set retention policies
-   - Optimize cardinality
-   - Sample low-value data
+**Full Architecture Docs:** [ARCHITECTURE.md](ARCHITECTURE.md)
 
 ---
 
-## Resources
+## Technology Stack
 
-### Documentation
-- [OpenTelemetry Docs](https://opentelemetry.io/docs/)
-- [Grafana Tempo](https://grafana.com/docs/tempo/)
-- [Prometheus](https://prometheus.io/docs/)
-- [Loki](https://grafana.com/docs/loki/)
+### Infrastructure Layer
 
-### Books
-- "Observability Engineering" by Charity Majors
-- "Site Reliability Engineering" by Google
-- "Distributed Tracing in Practice" by Austin Parker
+| Component | Version | Purpose |
+|-----------|---------|---------|
+| **KVM/QEMU** | Native (kernel 6.12) | Hypervisor (hardware virtualization) |
+| **libvirt** | Latest | VM lifecycle management, virtual networking |
+| **Debian** | 13 (Trixie) | Host and guest OS |
 
-### Community
-- [CNCF Slack #opentelemetry](https://cloud-native.slack.com/)
-- [Grafana Community Forums](https://community.grafana.com/)
+### Application Layer
+
+| Component | Version | Purpose |
+|-----------|---------|---------|
+| **Python** | 3.11 | Backend runtime |
+| **Flask** | 3.0.0 | Web framework |
+| **SQLAlchemy** | 3.1.1 | ORM (migrating to PostgreSQL in Phase 3) |
+| **Nginx** | Alpine (latest) | Reverse proxy, static file server |
+
+### Observability Layer
+
+| Component | Version | Purpose |
+|-----------|---------|---------|
+| **OpenTelemetry Collector** | 0.96.0 (contrib) | Telemetry pipeline hub |
+| **OpenTelemetry Python SDK** | 1.22.0 | Auto-instrumentation (Flask, SQLAlchemy) |
+| **Grafana Tempo** | 2.3.1 | Distributed trace storage (TraceQL) |
+| **Prometheus** | 2.48.1 | Metrics storage (TSDB), PromQL queries |
+| **Grafana Loki** | 2.9.3 | Log aggregation, LogQL queries |
+| **Grafana** | 10.2.3 | Unified visualization, dashboards |
+| **prometheus_client** | Latest | Python metrics library (Counters, Histograms) |
+
+### CI/CD Layer
+
+| Component | Version | Purpose |
+|-----------|---------|---------|
+| **Jenkins** | LTS (JDK 17) | CI/CD controller |
+| **Docker** | 20.10+ | Containerization |
+| **Docker Compose** | 2.0+ | Multi-container orchestration |
+| **HashiCorp Vault** | Latest | Secrets management |
+| **rsync** | 3.2.7 | File synchronization to VMs |
+
+---
+
+## Learning Outcomes
+
+### What You'll Understand After This Project
+
+**Infrastructure:**
+- ✅ Hypervisor concepts (KVM, QEMU, hardware virtualization)
+- ✅ Virtual networking (libvirt bridges, NAT, DNS/DHCP)
+- ✅ Storage pools and virtual volumes (qcow2, LVM)
+- ✅ VM lifecycle management (virsh, virt-manager, XML configs)
+
+**Containerization:**
+- ✅ Docker networking (bridge, service discovery, dynamic DNS)
+- ✅ Healthchecks and startup ordering (`depends_on: service_healthy`)
+- ✅ Bind mounts and volume management
+- ✅ Multi-stage builds and image optimization
+
+**Observability:**
+- ✅ Distributed tracing (parent-child spans, W3C Trace Context)
+- ✅ Metrics instrumentation (counters, histograms, percentiles)
+- ✅ Structured logging with trace correlation
+- ✅ SLI/SLO implementation (availability, latency, error budgets)
+- ✅ PromQL, LogQL, and TraceQL query languages
+
+**CI/CD:**
+- ✅ Jenkins pipeline design (Groovy syntax, stages, agents)
+- ✅ SSH-based deployment (rsync, sshagent, remote execution)
+- ✅ Docker context management
+- ✅ Secrets management (Vault integration)
+- ✅ Pipeline smoke tests and health checks
+
+**Security:**
+- ✅ SSH key-based authentication (ED25519 key generation)
+- ✅ Disabling password authentication (production hardening)
+- ✅ User account security (password locking with `passwd -l`)
+- ✅ SSH daemon hardening (`sshd_config` best practices)
+- ✅ Security-first mindset (practice production rigor in lab)
+
+**Web Architecture:**
+- ✅ Reverse proxy configuration (Nginx dynamic DNS resolution)
+- ✅ Flask application context lifecycle
+- ✅ SQLAlchemy event listeners (performance tracking)
+- ✅ CORS vs. same-origin requests (architectural trade-offs)
+
+**Debugging Distributed Systems:**
+- ✅ Trace data flow across network boundaries
+- ✅ Interpret error messages (framework lifecycles, DNS resolution)
+- ✅ When to restart vs. rebuild (Docker caching, DNS state)
+- ✅ Use logs, metrics, and traces together for root cause analysis
+
+---
+
+## Roadmap
+
+### Current State: Phase 1 (Complete) ✅
+
+- ✅ KVM/libvirt virtualization infrastructure
+- ✅ Containerized Jenkins CI/CD pipeline
+- ✅ Full observability stack (traces, metrics, logs)
+- ✅ Automated deployment (SSH + rsync + docker compose)
+- ✅ Pre-built Grafana dashboards (SLI/SLO)
+- ✅ Comprehensive documentation (125,000+ words)
+
+### Phase 2: Advanced CI/CD & Security (Next 3-6 Months)
+
+**Pre-Commit Hooks:**
+- Host IDE: `black`, `flake8`, `prettier`, `detect-secrets`
+- GitHub: Branch protection, pre-receive hooks
+
+**Policy as Code:**
+- Learn Rego (OPA policy language)
+- Implement Conftest CLI in pipeline
+- Enforce: No root containers, resource limits, no hardcoded secrets
+
+**Security Scanning Pipeline:**
+- SonarQube (SAST - code quality, security vulnerabilities)
+- Snyk (dependency scanning - Python, JavaScript)
+- Trivy (container image scanning)
+- JFrog Artifactory + Xray (artifact versioning, compliance)
+
+**Quality Gates:**
+- Pipeline fails on high/critical vulnerabilities
+- Auto-create Jira tickets with remediation steps
+- Slack notifications to #devsecops channel
+
+**Server Hardening:**
+- Implement comprehensive Linux hardening (fail2ban, UFW firewall, kernel tuning)
+- Reference: [How To Secure A Linux Server](https://github.com/imthenachoman/How-To-Secure-A-Linux-Server)
+- Incremental implementation: SSH keys (done) → fail2ban → firewall → HIDS → audit logging
+
+### Phase 3: Kubernetes Migration (6-12 Months)
+
+**Goals:**
+- Migrate from Docker Compose → Kubernetes manifests
+- Create Helm charts for observability stack
+- Replace SQLite → PostgreSQL StatefulSet
+- Deploy to on-prem K8s cluster (kubeadm on VMs)
+
+**New Skills:**
+- Kubernetes networking (Services, Ingress, NetworkPolicies)
+- Persistent storage (PVCs, StorageClasses, dynamic provisioning)
+- StatefulSets vs. Deployments
+- Helm templating (values.yaml, chart dependencies)
+- Service mesh integration (Istio/Linkerd for automatic observability)
+
+### Phase 4: Hybrid Cloud (12-18 Months)
+
+**Implement the 5 R's of Cloud Migration:**
+
+1. **Rehost (Lift and Shift):** Deploy to AWS EKS / GCP GKE / Azure AKS
+2. **Replatform (Lift, Tinker, Shift):** Use managed Prometheus, RDS/Cloud SQL
+3. **Refactor (Re-architect):** Decompose to microservices, use cloud messaging
+4. **Repurchase (SaaS):** Evaluate Datadog vs. self-hosted (cost/features)
+5. **Relocate (Hypervisor Lift-and-Shift):** AWS MGN / Azure Migrate
+
+**Hybrid Architecture:**
+- Dev/test on-prem (KVM VMs)
+- Prod in cloud (managed Kubernetes)
+- Unified observability (Grafana queries both)
+
+### Phase 5: Advanced Topics (18+ Months)
+
+- Ansible automation (playbooks for VM provisioning, K8s deployment)
+- Complex networking (BGP routing, multi-region, private service mesh)
+- Bare metal self-hosting (Talos Linux, home lab with rack servers)
+
+**Full Roadmap:** [ARCHITECTURE.md - Future Roadmap](ARCHITECTURE.md#future-roadmap)
+
+---
+
+## Contributing
+
+This is a learning project, and contributions are welcome!
+
+**Ways to Contribute:**
+- 🐛 **Report bugs** (open an issue with reproduction steps)
+- 📖 **Improve documentation** (fix typos, add clarifications)
+- 💡 **Suggest enhancements** (new features, architectural improvements)
+- 🤝 **Share your experience** (Did this help you learn? Tell me!)
+
+**How to Contribute:**
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
+
+**Guidelines:**
+- Follow existing code style (black for Python, prettier for JS)
+- Update documentation for any architectural changes
+- Add tests if adding new functionality
+- Reference issues in commit messages (`Fixes #42`)
+
+---
+
+## Acknowledgments
+
+**Inspired By:**
+- Google SRE Book (Site Reliability Engineering principles)
+- Observability Engineering (Charity Majors, Liz Fong-Jones, George Miranda)
+- OpenTelemetry Documentation
+- Production experiences from Netflix, Uber, Airbnb engineering blogs
+
+**Community:**
+- OpenTelemetry Slack (#opentelemetry)
+- Grafana Community Forums
+- r/devops, r/sre, r/kubernetes
 
 ---
 
 ## License
 
-This lab is for educational purposes. Feel free to modify and extend for your learning journey.
+MIT License - See [LICENSE](LICENSE) for details.
+
+**TL;DR:** Use this for your own learning. Modify it. Break it. Fix it. Share it. Just keep the attribution.
 
 ---
 
-## Additional Documentation
+## Contact
 
-This lab includes comprehensive documentation for different learning paths:
+**GitHub:** [illusivegit](https://github.com/illusivegit)
+**Project:** [Opentelemetry_Observability_Lab](https://github.com/illusivegit/Opentelemetry_Observability_Lab)
 
-### 📚 **Core Documentation**
-
-1. **README.md** (this file) - ~850 lines
-   - Complete walkthrough and exercises
-   - Quick start and teardown instructions
-   - Lab exercises and troubleshooting
-
-2. **QUICK-REFERENCE.md** - ~430 lines
-   - Cheat sheet for common commands
-   - PromQL, TraceQL, and LogQL query examples
-   - Quick troubleshooting tips
-
-3. **PROJECT-SUMMARY.md** - ~580 lines
-   - High-level project overview
-   - Architecture components and features
-   - Technology stack and versions
-   - Success metrics and next steps
-
-4. **DATA-FLOW.md** - ~500 lines
-   - Visual data flow documentation
-   - Request journey diagrams
-   - Trace hierarchy examples
-   - Correlation workflows
-
-### 📖 **Advanced Documentation**
-
-5. **IMPLEMENTATION-GUIDE.md** - ~2,200 lines (47,000+ words!)
-   - **Complete technical deep-dive**
-   - Every configuration explained in detail
-   - All 6 troubleshooting scenarios with:
-     - Full error messages and stack traces
-     - Root cause analysis
-     - Multiple attempted solutions
-     - Final fixes with explanations
-   - CI/CD integration patterns (Jenkins, GitLab CI, GitHub Actions)
-   - Production readiness checklist
-   - Performance tuning guide
-   - Security considerations
-
-6. **BLOG-POST.md** - ~1,100 lines (6,100+ words)
-   - **The journey from clueless to confident**
-   - Personal narrative of building the lab
-   - Trial and error stories (falling forward)
-   - Lessons learned from each issue
-   - Meta-lessons about learning and AI pair programming
-   - Perfect for blog publication
-
-### 🎯 **Which Document Should I Read?**
-
-**If you want to...**
-- **Get started quickly** → README.md (this file) + QUICK-REFERENCE.md
-- **Understand the architecture** → PROJECT-SUMMARY.md + DATA-FLOW.md
-- **Troubleshoot issues** → IMPLEMENTATION-GUIDE.md
-- **Learn from mistakes** → BLOG-POST.md
-- **Integrate with CI/CD** → IMPLEMENTATION-GUIDE.md (CI/CD section)
-- **Deploy to production** → IMPLEMENTATION-GUIDE.md (Production section)
-
-**Total Documentation**: **5,580+ lines** covering theory, practice, and real-world troubleshooting.
+**Questions? Issues? Feedback?**
+- Open an issue on GitHub
+- Check existing documentation (125,000+ words of answers)
 
 ---
 
-## CI/CD Integration
+## Final Thoughts
 
-This lab is **production-ready** and includes examples for:
-- ✅ **Jenkins Pipeline** - Full Groovy pipeline with automated testing
-- ✅ **GitLab CI** - YAML pipeline configuration
-- ✅ **GitHub Actions** - Workflow for automated validation
-- ✅ **SLI/SLO Enforcement** - Fail builds on SLO breaches
-- ✅ **Performance Regression Detection** - Compare latency across builds
-- ✅ **Dashboard Export** - Version control your Grafana dashboards
+> "You don't learn observability by reading about it. You learn by building it, breaking it, and debugging it at 2 AM when nothing makes sense and then suddenly—**click**—everything is clear."
 
-See **IMPLEMENTATION-GUIDE.md** for complete pipeline examples and integration patterns.
+This project represents **hundreds of hours** of building, debugging, documenting, and learning. Every error message taught something. Every breakthrough revealed a deeper understanding.
 
----
+If you're starting your own journey into DevSecOps, SRE, or observability engineering:
 
-## Version History
+**Start small. Build something. Break it. Fix it. Document it.**
 
-- **v2.0** (October 13, 2025) - Battle-tested version
-  - Upgraded OTel Collector to v0.96.0
-  - Added Loki label configuration with attribute hints
-  - Fixed all 6 major issues (documented in IMPLEMENTATION-GUIDE.md)
-  - Added comprehensive documentation (5,580+ lines)
-  - CI/CD integration examples
+That's how you go from reading about distributed tracing to **understanding** how traces flow from browser → backend → database → collector → storage → visualization.
 
-- **v1.0** (October 11, 2025) - Initial release
-  - Complete observability stack
-  - Basic documentation
-  - Working examples
+**Happy Building.**
 
 ---
 
-## Feedback
+**Created:** October 2025
+**Last Updated:** October 20, 2025
+**Version:** 2.0 (Production-Ready Proof of Concept)
+**Status:** ✅ Milestone 1 Complete | 🚧 Phase 2 Planning
 
-Found issues or have suggestions? This is a learning lab - experiment, break things, and learn!
+**Documentation Stats:**
+- 📄 6 core documents
+- 📝 125,000+ words
+- 🎯 100% coverage (infrastructure → application → observability → CI/CD)
+- 📊 15+ architecture diagrams
+- 🔧 50+ design decisions documented
 
-For detailed troubleshooting of common issues, see **IMPLEMENTATION-GUIDE.md**.
-
----
-
-**Created**: October 11, 2025
-**Updated**: October 13, 2025
-**Version**: 2.0 (Battle-Tested)
-**Status**: Production-Ready for Learning ✅
-
-**Happy Observing!** 🔭📊🚀
+**Ready to Learn? Read:** [JOURNEY.md](JOURNEY.md) - Start here for the full story.

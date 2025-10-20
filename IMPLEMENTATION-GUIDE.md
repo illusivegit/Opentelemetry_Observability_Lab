@@ -659,7 +659,7 @@ class Task(db.Model):
 with app.app_context():
     os.makedirs('/app/data', exist_ok=True)
 
-    # Now db.engine is accessible because we're in app context
+    # Now db.engine is accessible because code is in app context
     SQLAlchemyInstrumentor().instrument(engine=db.engine)
 
     db.create_all()
@@ -1294,7 +1294,7 @@ $ curl -s "http://localhost:3100/loki/api/v1/labels" | jq
     "job",
     "level",
     "service_instance_id",     # ← NEW
-    "service_name"             # ← NEW - The one we wanted!
+    "service_name"             # ← NEW - The desired label!
   ]
 }
 ```
@@ -1318,7 +1318,7 @@ $ curl -s -G "http://localhost:3100/loki/api/v1/query_range" \
 }
 ```
 
-✅ **Success!** Now we can query: `{service_name="flask-backend"}`
+✅ **Success!** Now queries work: `{service_name="flask-backend"}`
 
 #### Label Design Considerations
 

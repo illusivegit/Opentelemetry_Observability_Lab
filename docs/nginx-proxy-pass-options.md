@@ -1,6 +1,6 @@
 # Nginx `proxy_pass` with Variables: Option 1 vs Option 2
 
-## The Problem We're Solving
+## The Problem Being Solved
 
 When using Docker Compose, container IPs change on every rebuild/restart. Nginx normally resolves upstream hostnames **once at startup** and caches the IP forever. This causes 502 errors when the backend container gets a new IP after `docker compose restart backend`.
 
@@ -24,7 +24,7 @@ You'd expect Nginx to append `/api/` to the upstream request, but **it doesn't**
 
 ---
 
-## Option 1: Keep `/api` Prefix (Recommended for Our Setup)
+## Option 1: Keep `/api` Prefix (Recommended for This Setup)
 
 **What it does:** Passes the full original URI (e.g., `/api/tasks`) to the backend unchanged.
 
@@ -80,9 +80,9 @@ Client Request:
 ✅ No rewrite rules needed
 ```
 
-### Why This Works for Us
+### Why This Works
 
-Our Flask backend defines routes **with** the `/api` prefix:
+The Flask backend defines routes **with** the `/api` prefix:
 
 ```python
 # backend/app.py
@@ -95,7 +95,7 @@ def create_task():
     ...
 ```
 
-Since Flask expects `/api/tasks`, we should send `/api/tasks` from Nginx. Option 1 does exactly that.
+Since Flask expects `/api/tasks`, Nginx should send `/api/tasks`. Option 1 does exactly that.
 
 ---
 
@@ -181,13 +181,13 @@ In this case, you'd strip `/api` in Nginx so Flask sees `/tasks` instead of `/ap
 | **URI Sent to Backend** | `/api/tasks` | `/tasks` |
 | **Flask Route Needed** | `@app.route('/api/tasks')` | `@app.route('/tasks')` |
 | **Complexity** | ✅ Simple | ⚠️ Extra rewrite rule |
-| **Matches Our Setup** | ✅ Yes (our Flask uses `/api/...`) | ❌ No (would break routing) |
+| **Matches This Setup** | ✅ Yes (Flask uses `/api/...`) | ❌ No (would break routing) |
 
 ---
 
-## Why We Chose Option 1
+## Why Option 1 Was Chosen
 
-1. **Matches existing Flask routes:** Our backend already uses `/api/tasks`, `/api/smoke/db`, etc.
+1. **Matches existing Flask routes:** The backend already uses `/api/tasks`, `/api/smoke/db`, etc.
 2. **Simpler config:** No rewrite rules needed.
 3. **Explicit behavior:** The URI path is transparent—what the client sends is what Flask receives.
 4. **Easier to debug:** `proxy_pass $backend_upstream` with no URI manipulation is straightforward.
