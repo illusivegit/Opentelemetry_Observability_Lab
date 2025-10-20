@@ -128,6 +128,33 @@ This is **milestone 1** of the **On-Prem Domain**—a comprehensive learning pat
 
 ---
 
+### Application Frontend
+![Task Manager Frontend](pics/frontend1_frontpage.png)
+*Simple, responsive task management interface with OpenTelemetry browser instrumentation*
+
+### Grafana Observability Stack
+
+#### Grafana Home
+![Grafana Homepage](pics/grafana1_homepage.png)
+*Main Grafana dashboard showing available data sources and dashboards*
+
+#### Available Dashboards
+![Grafana Dashboards](pics/grafana2_homepage_dashboards.png)
+
+#### End-to-End Tracing Dashboard
+![Tracing Dashboard](pics/grafana2_homepage_dashboards_end-to-end_tracing_dashboard.png)
+
+![Detailed Trace View](pics/grafana2_homepage_dashboards_end-to-end_tracing_dashboard2.png)
+*Distributed trace visualization showing browser → backend → database spans*
+
+#### SLI/SLO Dashboard
+![SLI/SLO Overview](pics/grafana3_homepage_dashboards_SLI_SLO_Dashboard_Task-Manager.png)
+
+![SLI/SLO Details](pics/grafana3_homepage_dashboards_SLI_SLO_Dashboard_Task-Manager2.png)
+*Detailed SLO metrics with database performance tracking and error budget visualization*
+
+---
+
 ## What Makes This Different
 
 ### 🏗️ Built on Simulated On-Premises Infrastructure

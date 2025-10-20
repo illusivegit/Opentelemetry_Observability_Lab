@@ -1,6 +1,9 @@
 server:
   http_listen_port: 3200
 
+# Enable search API for Grafana Trace Search functionality
+search_enabled: true
+
 distributor:
   receivers:
     otlp:
