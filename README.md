@@ -734,14 +734,6 @@ This is a learning project, and contributions are welcome!
 
 ---
 
-## License
-
-MIT License - See [LICENSE](LICENSE) for details.
-
-**TL;DR:** Use this for your own learning. Modify it. Break it. Fix it. Share it. Just keep the attribution.
-
----
-
 ## Contact
 
 **GitHub:** [illusivegit](https://github.com/illusivegit)
