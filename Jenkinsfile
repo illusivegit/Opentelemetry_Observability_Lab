@@ -101,4 +101,3 @@ pipeline {
       echo "Hint: tail remote logs → docker --context ${DOCKER_CTX} compose --project-directory ${VM_DIR} -p ${PROJECT} logs --no-color --tail=200"
     }
   }
-}
