@@ -695,7 +695,7 @@ stage('Compose up (remote via SSH)') {
   sshagent(credentials: ['vm-ssh']) {
     sh '''
       ssh ${VM_USER}@${VM_IP} "
-        cd ${VM_DIR} && docker compose -p lab up -d --build
+        cd ${VM_DIR} && PROJECT=${PROJECT} ./start-lab.sh
       "
     '''
   }
@@ -939,7 +939,7 @@ docker compose -p ${PROJECT} up -d --build
 ```bash
 ./start-lab.sh
 # Output: 📦 Using project name: lab
-# Runs: docker compose -p lab up -d --build
+# Internally runs: docker compose -p lab up -d --build
 ```
 
 **Jenkins Pipeline (env var passed):**
@@ -957,7 +957,7 @@ stage('Deploy') {
 }
 # Script receives PROJECT=lab from Jenkins
 # Output: 📦 Using project name: lab
-# Runs: docker compose -p lab up -d --build
+# Internally runs: docker compose -p lab up -d --build
 ```
 
 **Custom Local Override (testing):**

@@ -81,8 +81,9 @@ pipeline {
             export DOCKER_BUILDKIT=1
             ssh ${VM_USER}@${VM_IP} "
               cd ${VM_DIR} && \
-              docker compose -p ${PROJECT} up -d --build && \
-              docker compose -p ${PROJECT} ps
+              PROJECT=${PROJECT} ./start-lab.sh
+              # Explicitly override the default PROJECT=lab variable inside start-lab.sh using Jenkins-provided environment variable "PROJECT=${PROJECT}"
+
             "
           '''
         }

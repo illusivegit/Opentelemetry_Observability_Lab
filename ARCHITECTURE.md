@@ -232,7 +232,7 @@ pipeline {
     }
 
     stage('Compose up (remote via SSH)') {
-      // SSH into VM, run: docker compose -p lab up -d --build
+      // SSH into VM, run: PROJECT=<name> ./start-lab.sh (defaults to "lab")
       // DOCKER_BUILDKIT=1 for optimized image builds
     }
 
@@ -1030,7 +1030,7 @@ This is **the power of unified observability**: Jump seamlessly between metrics 
 │  │  8. Docker Compose Deployment (via SSH)                    │  │
 │  │     ssh deploy@192.168.122.250 "                           │  │
 │  │       cd /home/deploy/lab/app &&                           │  │
-│  │       docker compose -p lab up -d --build                  │  │
+│  │       PROJECT=lab ./start-lab.sh                           │  │
 │  │     "                                                       │  │
 │  │                                                             │  │
 │  │     Steps executed on VM:                                   │  │

@@ -218,7 +218,7 @@ chmod +x start-lab.sh
 ```
 
 **What it does:**
-- Sets `PROJECT="lab"` for organized container naming (matches Jenkins pipeline)
+- Defaults `PROJECT="lab"` for organized container naming (matches Jenkins pipeline) while honoring any `PROJECT` value you export before running the script
 - Runs: `docker compose -p lab up -d --build`
 - Validates all service health checks
 - Provides clear status output
@@ -301,8 +301,7 @@ See: [ARCHITECTURE.md - CI/CD Pipeline Architecture](ARCHITECTURE.md#cicd-pipeli
 ```bash
 ssh ${VM_USER}@${VM_IP} "
   cd ${VM_DIR} && \
-  docker compose -p lab up -d --build && \
-  docker compose -p lab ps
+  PROJECT=lab ./start-lab.sh   # Override as needed (e.g., PROJECT=staging)
 "
 ```
 
