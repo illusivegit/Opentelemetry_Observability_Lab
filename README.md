@@ -219,6 +219,7 @@ chmod +x start-lab.sh
 
 **What it does:**
 - Defaults `PROJECT="lab"` for organized container naming (matches Jenkins pipeline) while honoring any `PROJECT` value you export before running the script
+- Defaults `LAB_HOST="localhost"` for printed URLs; override with `LAB_HOST=<vm-ip>` when deploying remotely
 - Runs: `docker compose -p lab up -d --build`
 - Validates all service health checks
 - Provides clear status output
@@ -301,7 +302,7 @@ See: [ARCHITECTURE.md - CI/CD Pipeline Architecture](ARCHITECTURE.md#cicd-pipeli
 ```bash
 ssh ${VM_USER}@${VM_IP} "
   cd ${VM_DIR} && \
-  PROJECT=lab ./start-lab.sh   # Override as needed (e.g., PROJECT=staging)
+  PROJECT=lab LAB_HOST=${VM_IP} ./start-lab.sh   # Override as needed (e.g., PROJECT=staging LAB_HOST=<other-host>)
 "
 ```
 
@@ -309,10 +310,7 @@ ssh ${VM_USER}@${VM_IP} "
 
 ### Verify Deployment
 
-**Important:** Replace `localhost` with your VM's IP address if deploying to a virtual machine.
-
-**For VM deployments:** If you deployed to a VM (e.g., via Jenkins pipeline or manual SSH), replace `localhost` with your VM's IP address:
-- Example: `http://192.168.122.250:8080` instead of `http://localhost:8080`
+**Important:** If you're running on a remote VM, set `LAB_HOST=<VM_IP>` when invoking `start-lab.sh` (the Jenkins pipeline example already does this) or manually replace `localhost` with the VM's IP in the URLs below.
 
 **Application:**
 - Frontend: `http://<VM_IP>:8080` (or `http://localhost:8080` for local)
