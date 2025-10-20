@@ -45,12 +45,11 @@
 
 ### 📚 Documentation Updated
 
-**ARCHITECTURE.md**, **DESIGN-DECISIONS.md**, **IMPLEMENTATION-GUIDE.md**, **JOURNEY.md** — all aligned to first-person narrative, with troubleshooting and PromQL/LogQL tips for day-2 ops.
+**docs/phase-1-docker-compose/ARCHITECTURE.md**, **docs/phase-1-docker-compose/DESIGN-DECISIONS.md**, **docs/phase-1-docker-compose/IMPLEMENTATION-GUIDE.md**, **docs/phase-1-docker-compose/JOURNEY.md** — all aligned to first-person narrative, with troubleshooting and PromQL/LogQL tips for day-2 ops.
 
 ---
 
 ### 🛣️ What’s Next
-
 - **Phase 2** → OPA/Rego policies, SAST/DAST, artifact management.  
 - **Phase 3** → Kubernetes (Helm, StatefulSets), PostgreSQL, possible service mesh.
 
@@ -184,7 +183,7 @@ Automated deployment through **containerized Jenkins** with Docker agents, SSH-b
 - Industry best practice implementation
 - Future hardening planned: fail2ban, UFW firewall, 2FA
 
-See: [ARCHITECTURE.md - CI/CD Pipeline Architecture](ARCHITECTURE.md#cicd-pipeline-architecture)
+See: [docs/phase-1-docker-compose/ARCHITECTURE.md - CI/CD Pipeline Architecture](docs/phase-1-docker-compose/ARCHITECTURE.md#cicd-pipeline-architecture)
 
 ### 📊 Production-Ready Observability
 
@@ -198,11 +197,11 @@ Not a toy demo. This stack implements:
 ### 📚 Comprehensive Documentation
 
 Over **100,000 words** of documentation covering:
-- **ARCHITECTURE.md:** Complete system design from hypervisor to application (47,000+ words)
-- **DESIGN-DECISIONS.md:** All architectural choices, trade-offs, and rationale
-- **JOURNEY.md:** The story of building this (struggles, breakthroughs, lessons)
-- **IMPLEMENTATION-GUIDE.md:** Technical deep-dive with troubleshooting
-- **docs/deployment-verification.md:** Step-by-step deployment validation
+- **ARCHITECTURE.md:** Complete system design from hypervisor to application (47,000+ words) — `docs/phase-1-docker-compose/ARCHITECTURE.md`
+- **DESIGN-DECISIONS.md:** All architectural choices, trade-offs, and rationale — `docs/phase-1-docker-compose/DESIGN-DECISIONS.md`
+- **JOURNEY.md:** The story of building this (struggles, breakthroughs, lessons) — `docs/phase-1-docker-compose/JOURNEY.md`
+- **IMPLEMENTATION-GUIDE.md:** Technical deep-dive with troubleshooting — `docs/phase-1-docker-compose/IMPLEMENTATION-GUIDE.md`
+- **Deployment Verification:** Step-by-step deployment validation — `docs/phase-1-docker-compose/deployment-verification.md`
 
 ### 🧪 Battle-Tested
 
@@ -212,7 +211,7 @@ Every error message was encountered, debugged, and documented:
 - "Database not found" (container filesystems)
 - "Metric duplication" (OTel SDK vs. Prometheus client)
 
-See: [JOURNEY.md](JOURNEY.md) for the complete story.
+See: [JOURNEY.md](docs/phase-1-docker-compose/JOURNEY.md) for the complete story.
 
 ---
 
@@ -267,7 +266,7 @@ docker compose -p lab restart backend
 docker compose -p lab ps
 ```
 
-**Design Decision:** Using `-p lab` creates a namespace for all containers (e.g., `lab-backend-1`, `lab-frontend-1`), preventing naming conflicts with other Docker Compose projects and matching the production pipeline pattern. See [DESIGN-DECISIONS.md](DESIGN-DECISIONS.md) for full rationale.
+**Design Decision:** Using `-p lab` creates a namespace for all containers (e.g., `lab-backend-1`, `lab-frontend-1`), preventing naming conflicts with other Docker Compose projects and matching the production pipeline pattern. See [DESIGN-DECISIONS.md](docs/phase-1-docker-compose/DESIGN-DECISIONS.md) for full rationale.
 
 ---
 
@@ -319,7 +318,7 @@ docker compose ps
 
 **For the complete production deployment experience:**
 
-See: [ARCHITECTURE.md - CI/CD Pipeline Architecture](ARCHITECTURE.md#cicd-pipeline-architecture)
+See: [docs/phase-1-docker-compose/ARCHITECTURE.md - CI/CD Pipeline Architecture](docs/phase-1-docker-compose/ARCHITECTURE.md#cicd-pipeline-architecture)
 
 1. Set up Jenkins controller + Docker agent (see docs)
 2. Configure VM target (SSH keys, Docker daemon)
@@ -355,24 +354,35 @@ ssh ${VM_USER}@${VM_IP} "
 3. Navigate to Grafana → Dashboards → "SLI/SLO Dashboard - Task Manager"
 4. See metrics, traces, and logs populate
 
-**Detailed Verification Guide:** [docs/deployment-verification.md](docs/deployment-verification.md)
+**Detailed Verification Guide:** [phase-1-docker-compose/deployment-verification.md](docs/phase-1-docker-compose/deployment-verification.md)
 
 ---
 
 ## Documentation
 
-### Core Documents
+📚 **[Complete Documentation Index](docs/README.md)** - Master index for all phases and cross-cutting docs
 
-| Document | Purpose | Pages |
-|----------|---------|-------|
-| **[ARCHITECTURE.md](ARCHITECTURE.md)** | Complete system architecture from infrastructure to application | 47,000 words |
-| **[DESIGN-DECISIONS.md](DESIGN-DECISIONS.md)** | All architectural decisions with trade-offs and rationale | 15,000 words |
-| **[JOURNEY.md](JOURNEY.md)** | The story of building this (failures, breakthroughs, lessons) | 12,000 words |
-| **[IMPLEMENTATION-GUIDE.md](IMPLEMENTATION-GUIDE.md)** | Technical deep-dive with troubleshooting scenarios | 47,000 words |
-| **[docs/deployment-verification.md](docs/deployment-verification.md)** | Step-by-step post-deployment validation | 4,000 words |
-| **[docs/nginx-proxy-pass-options.md](docs/nginx-proxy-pass-options.md)** | Nginx reverse proxy design (proxy vs. CORS) | 1,500 words |
+### Phase 1: Docker Compose Foundation ✅
 
-**Total:** 125,000+ words of comprehensive documentation
+**Current phase documentation:**
+
+| Document | Purpose | Size |
+|----------|---------|------|
+| **[Architecture](docs/phase-1-docker-compose/ARCHITECTURE.md)** | Complete system architecture from infrastructure to application | 47,000 words |
+| **[Design Decisions](docs/phase-1-docker-compose/DESIGN-DECISIONS.md)** | All architectural decisions with trade-offs and rationale | 15,000 words |
+| **[Journey](docs/phase-1-docker-compose/JOURNEY.md)** | The story of building this (failures, breakthroughs, lessons) | 12,000 words |
+| **[Implementation Guide](docs/phase-1-docker-compose/IMPLEMENTATION-GUIDE.md)** | Technical deep-dive with troubleshooting scenarios | 47,000 words |
+| **[Deployment Verification](docs/phase-1-docker-compose/deployment-verification.md)** | Step-by-step post-deployment validation | 4,000 words |
+| **[Troubleshooting](docs/phase-1-docker-compose/troubleshooting/)** | Operational playbooks for common issues | 8,000 words |
+
+### Cross-Cutting Knowledge
+
+| Document | Purpose | Size |
+|----------|---------|------|
+| **[Observability Fundamentals](docs/cross-cutting/observability-fundamentals.md)** | Three Pillars, SLI/SLO, OpenTelemetry basics | 15,000 words |
+| **[TraceQL Reference](docs/cross-cutting/traceql-reference.md)** | Query language guide for Tempo | 4,000 words |
+
+**Total:** 152,000+ words across all documentation
 
 ### Quick References
 
@@ -508,7 +518,7 @@ histogram_quantile(0.95, sum(rate(db_query_duration_seconds_bucket[5m])) by (le,
    - OTel reserved for traces and logs (distributed context)
    - See: [DESIGN-DECISIONS.md - DD-006](DESIGN-DECISIONS.md#dd-006-metric-instrumentation-prometheus-client-vs-otel-sdk-metrics)
 
-**Full Architecture Docs:** [ARCHITECTURE.md](ARCHITECTURE.md)
+**Full Architecture Docs:** [ARCHITECTURE.md](docs/phase-1-docker-compose/ARCHITECTURE.md)
 
 ---
 
@@ -771,4 +781,4 @@ That's how you go from reading about distributed tracing to **understanding** ho
 - 📊 15+ architecture diagrams
 - 🔧 50+ design decisions documented
 
-**Ready to Learn? Read:** [JOURNEY.md](JOURNEY.md) - Start here for the full story.
+**Ready to Learn? Read:** [JOURNEY.md](docs/phase-1-docker-compose/JOURNEY.md) - Start here for the full story.

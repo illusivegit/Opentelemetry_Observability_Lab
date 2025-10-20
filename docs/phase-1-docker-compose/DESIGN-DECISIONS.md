@@ -1227,7 +1227,7 @@ MaxAuthTries 3       # Limit authentication attempts
 
 **FUTURE RECONSIDERATION:**
 - **If Adding Bastion Host:** May need certificate-based SSH (signed keys)
-- **If Multi-Team:** Consider separate keys per team/user
+- **If Multiple Maintainers:** Consider separate keys per user
 - **If Compliance Required:** Implement key rotation automation (Ansible playbook)
 
 ---

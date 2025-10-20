@@ -646,7 +646,7 @@ After weeks of debugging, refactoring, and documenting, I had a **production-gra
 
 This isn't the end—it's **milestone 1** in a multi-year learning journey.
 
-### Phase 2: Advanced CI/CD & Security (Next 3-6 Months)
+### Phase 2: Advanced CI/CD & Security (Planned)
 
 **Pre-Commit Hooks:**
 - Host IDE: `black`, `flake8`, `prettier`, `detect-secrets`
@@ -668,7 +668,7 @@ This isn't the end—it's **milestone 1** in a multi-year learning journey.
 - Pipeline fails if: High/critical vulnerabilities found, code coverage < 80%, security policy violations
 - Auto-create Jira tickets on failure with remediation steps
 
-### Phase 3: Kubernetes Migration (6-12 Months)
+### Phase 3: Kubernetes Migration (Planned)
 
 **Why Kubernetes:**
 - Multi-node orchestration (current setup is single-VM)
@@ -689,7 +689,7 @@ This isn't the end—it's **milestone 1** in a multi-year learning journey.
 - StatefulSets vs. Deployments
 - Service mesh (Istio: mTLS, traffic management, automatic tracing)
 
-### Phase 4: Hybrid Cloud (12-18 Months)
+### Phase 4: Hybrid Cloud (Planned)
 
 Implement the **5 R's of Cloud Migration** using on-prem stack as source:
 
@@ -717,7 +717,7 @@ Implement the **5 R's of Cloud Migration** using on-prem stack as source:
 - Prod in cloud (managed Kubernetes)
 - Unified observability (Grafana queries both environments)
 
-### Phase 5: Advanced Topics (18+ Months)
+### Phase 5: Advanced Topics (Planned)
 
 **Ansible Automation:**
 - Replace manual VM provisioning with playbooks
@@ -825,7 +825,7 @@ Welcome to the journey.
 - Clone the repo: `git clone https://github.com/illusivegit/Opentelemetry_Observability_Lab.git`
 - Read: `ARCHITECTURE.md` (system design)
 - Read: `DESIGN-DECISIONS.md` (why choices were made)
-- Deploy: `docs/deployment-verification.md` (step-by-step deployment guide)
+- Deploy: `docs/phase-1-docker-compose/deployment-verification.md` (step-by-step deployment guide)
 
 **Feedback Welcome:**
 Found errors? Have questions? Open an issue or PR. This is a learning project—collaboration makes it better.

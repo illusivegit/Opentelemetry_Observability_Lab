@@ -625,7 +625,7 @@ grafana         ...   Up
 
 ## Additional Resources
 
-- **Nginx Proxy Pass Options:** See `docs/nginx-proxy-pass-options.md` for detailed explanation of Option 1 vs Option 2
+- **Nginx Proxy Pass Options:** See `docs/phase-1-docker-compose/nginx-proxy-pass-options.md` for detailed explanation of Option 1 vs Option 2
 - **Architecture Diagrams:** See main README.md for system topology
 - **Grafana Dashboards:** Pre-configured in `grafana/dashboards/sli-slo-dashboard.json`
 - **Prometheus Config:** Scrape targets defined in `otel-collector/prometheus.yml`

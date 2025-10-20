@@ -1076,7 +1076,7 @@ This is **the power of unified observability**: Jump seamlessly between metrics 
 
 ### Post-Deployment Verification
 
-After successful deployment, the following verification is performed (see `docs/deployment-verification.md` for full guide):
+After successful deployment, the following verification is performed (see `docs/phase-1-docker-compose/deployment-verification.md` for full guide):
 
 1. **Backend Container Health:** `docker compose -p lab ps` → backend shows "Up (healthy)"
 2. **DNS Resolution:** `docker exec frontend getent hosts backend` → Returns IP
@@ -1090,7 +1090,7 @@ After successful deployment, the following verification is performed (see `docs/
 
 ## Future Roadmap
 
-### Phase 2: Advanced CI/CD & Security (Next 3-6 Months)
+### Phase 2: Advanced CI/CD & Security (Planned)
 
 **Pre-Commit Hooks (Host IDE + GitHub):**
 - **Host Environment:**
@@ -1213,11 +1213,11 @@ deny[msg] {
   - Failed stage (SonarQube/Snyk/Trivy/Xray)
   - Vulnerability details with severity scores
   - Remediation suggestions (library upgrades)
-- Assigned to: Security team for triage
+- Assigned to: Security triage queue
 
 ---
 
-### Phase 3: Kubernetes Migration (6-12 Months)
+### Phase 3: Kubernetes Migration (Planned)
 
 **Rationale:**
 - Current: Docker Compose (single-host orchestration)
@@ -1256,7 +1256,7 @@ deny[msg] {
    - Add Ingress resource (Nginx Ingress Controller)
    - Service mesh (Istio/Linkerd) for automatic mTLS and observability
 
-**Kubernetes Architecture Preview:**
+**Kubernetes Architecture Snapshot:**
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │  INGRESS (Nginx Ingress Controller)                        │
@@ -1308,7 +1308,7 @@ deny[msg] {
 
 ---
 
-### Phase 4: Hybrid Cloud Migration (12-18 Months)
+### Phase 4: Hybrid Cloud Migration (Planned)
 
 **Goal:** Implement the **5 R's of Cloud Migration** using this on-prem stack as the source:
 
@@ -1373,7 +1373,7 @@ deny[msg] {
 
 ---
 
-### Phase 5: Advanced Topics (18+ Months)
+### Phase 5: Advanced Topics (Planned)
 
 **Ansible Automation:**
 - Replace manual VM provisioning with Ansible playbooks
