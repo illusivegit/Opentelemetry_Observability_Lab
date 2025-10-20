@@ -1,3 +1,62 @@
+## 🚀 Milestone 1 — Wrap-Up _(Oct 20, 2025)_
+
+> **TL;DR** — A production-inspired observability lab: **Flask backend**, **browser-instrumented frontend**, **Nginx** reverse proxy, and a full **OTel → Collector → Tempo/Loki** pipeline with **Prometheus** metrics. It’s resilient to container/IP churn, exposes clear **SLIs**, and ships **end-to-end traces** with **correlated logs**.
+
+---
+
+### ⭐ Highlights
+
+- **Three Pillars, Clean Separation**  
+  Traces (**OTel → Tempo**), Logs (**JSON → Loki**), Metrics (**Prometheus client only** to prevent duplication).
+- **Reverse Proxy Resilience**  
+  Nginx dynamic DNS + variable `proxy_pass` fixed the 502/DNS race on container restart.
+- **End-to-End Tracing**  
+  Browser → Flask → DB spans with `trace_id`/`span_id` log correlation.
+- **SLI/SLO Dashboards**  
+  Availability, error rate, P95 latency, request rate, DB timings in Grafana.
+- **Repeatable Ops**  
+  Deployment Verification checklist ensures scrape targets, traces, and dashboards are actually live.
+
+---
+
+### 🔧 Key Decisions & Fixes (at a glance)
+
+| Area | Decision | Why | Outcome |
+|---|---|---|---|
+| **Metrics** | Prometheus client (not OTel metrics) | Avoid duplicate series / confusion | One source of truth for SLIs |
+| **API Pathing** | Keep `/api` prefix via Nginx → Flask | Transparent routing, simpler config | Fewer edge-cases & rewrites |
+| **Proxy Resilience** | Dynamic DNS + `$upstream` `proxy_pass` | Backends get new IPs on restart | No more 502s on container churn |
+| **Security** | SSH key-only auth + locked password | Production-grade baseline | Safer CI/CD deploy path |
+| **Delivery** | Jenkins controller + Docker agent; SSH + `rsync` | Match bind-mount paths on target | Reliable, environment-aware deploys |
+
+---
+
+### 📊 What I Can Prove Works
+
+- **Traces** show Browser → Flask → DB with parent/child spans.
+- **Logs** include `trace_id`/`span_id` and correlate to traces.
+- **Metrics** power **SLI/SLO** panels (availability, P95 latency).
+- **Grafana** dashboards render live with traffic.
+- **Nginx** survives container restarts without 502s.
+
+> _Tip:_ Generate traffic, then open **Grafana → SLI/SLO Dashboard** to watch metrics, traces, and logs populate.
+
+---
+
+### 📚 Documentation Updated
+
+**ARCHITECTURE.md**, **DESIGN-DECISIONS.md**, **IMPLEMENTATION-GUIDE.md**, **JOURNEY.md** — all aligned to first-person narrative, with troubleshooting and PromQL/LogQL tips for day-2 ops.
+
+---
+
+### 🛣️ What’s Next
+
+- **Phase 2** → OPA/Rego policies, SAST/DAST, artifact management.  
+- **Phase 3** → Kubernetes (Helm, StatefulSets), PostgreSQL, possible service mesh.
+
+> **Verification:** Run the **Deployment Verification** checklist after any change to confirm green scrapes, traces, and dashboards.
+
+
 # Production-Grade Observability: From On-Premises to Cloud
 
 ## A Proof of Concept for Real-World SRE Practice
