@@ -232,8 +232,19 @@ pipeline {
     }
 
     stage('Compose up (remote via SSH)') {
-      // SSH into VM, run: PROJECT=<name> LAB_HOST=<host> ./start-lab.sh (defaults: "lab", "localhost")
-      // DOCKER_BUILDKIT=1 for optimized image builds
+      steps {
+        sshagent(credentials: ['vm-ssh']) {
+          sh '''
+            set -eu
+            export DOCKER_BUILDKIT=1
+            ssh ${VM_USER}@${VM_IP} "
+              cd ${VM_DIR} && \
+              PROJECT=${PROJECT} LAB_HOST=${VM_IP} ./start-lab.sh
+              # Explicitly override the default PROJECT=lab and LAB_HOST=localhost variables using Jenkins-provided values
+            "
+          '''
+        }
+      }
     }
 
     stage('Smoke tests') {
@@ -274,7 +285,12 @@ pipeline {
 - **Frontend dependency:** `depends_on: backend (service_healthy)`
 - **Result:** Eliminates race condition where Nginx starts before backend DNS resolves
 
-**5. SSH Security Hardening (Key-Only Authentication)**
+**5. Single Deployment Script (`start-lab.sh`)**
+- **Why:** Keeps local runs and pipeline deploys identical
+- **Overrides:** Jenkins passes `PROJECT` and `LAB_HOST` so container names and printed URLs match the remote VM
+- **Bonus:** Script exports `DOCKER_BUILDKIT=1` and runs composed health checks after startup
+
+**6. SSH Security Hardening (Key-Only Authentication)**
 - **Implementation:** ED25519 key-based authentication, password auth disabled
 - **Why ED25519:** Smaller keys (256-bit), faster operations, modern standard
 - **Process:**
