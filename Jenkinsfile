@@ -9,14 +9,7 @@ pipeline {
     PROJECT    = 'lab'
     VM_DIR     = '/home/deploy/lab/app'   // path on the VM
   }
-
-  stages {
-    stage('Checkout Code') {
-      steps {
-        git branch: 'main', url: 'https://github.com/illusivegit/Opentelemetry_Observability_Lab.git'
-      }
-    }
-
+  
     stage('Sanity on agent') {
       steps {
         sh '''
