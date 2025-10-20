@@ -130,7 +130,7 @@ docs/
 **Benefits:**
 - Ensures consistent structure
 - Guides contributors
-- Reduces documentation time per phase (4-6 hours saved)
+- Reduces documentation effort per phase thanks to predefined structure
 - Professional appearance
 
 #### DD-DOC-004: File Size Guidelines
@@ -153,9 +153,7 @@ docs/
 
 ### Migration Process
 
-**Total Time Invested:** 2 days
-
-#### Day 1: Directory Restructuring (4 hours)
+### Directory Restructuring
 
 **Created phase-based directories:**
 ```bash
@@ -182,7 +180,7 @@ mv docs/TRACE-SEARCH-TROUBLESHOOTING.md \
 
 **Result:** Phase 1 isolated, ready for Phase 2 to be added alongside.
 
-#### Day 2: Content Creation (4 hours)
+### Content Creation
 
 **Created cross-cutting documentation:**
 
@@ -230,7 +228,7 @@ mv docs/TRACE-SEARCH-TROUBLESHOOTING.md \
 - Documentation standards and guidelines
 - File size limits and maintenance procedures
 
-#### Link Updates (2 hours)
+### Link Updates
 
 **Updated root README.md:**
 - Changed 7 documentation links to phase-based paths
@@ -295,7 +293,7 @@ mv docs/TRACE-SEARCH-TROUBLESHOOTING.md \
 
 ### Adding Phase 2 (Security & Policy)
 
-When starting Phase 2, the workflow takes 4-6 hours:
+When starting Phase 2, follow this workflow:
 
 **1. Create directory structure:**
 ```bash
@@ -331,13 +329,13 @@ cp docs/templates/troubleshooting-template.md \
 **5. Update master index:**
 ```markdown
 ### Phase 2: Security & Policy (🚧 In Progress)
-**Started:** 2025-11-01
+**Started:** <phase start date>
 | Document | Status |
 |----------|--------|
 | [Architecture](phase-2-security-scanning/ARCHITECTURE.md) | ✅ Complete |
 ```
 
-**Time saved:** Templates reduce documentation time by 4-6 hours per phase through structure and guidance.
+**Benefit:** Templates keep each phase consistent and make documentation faster to produce.
 
 ---
 
@@ -491,35 +489,16 @@ docs/
 
 ## ROI Analysis
 
-### Time Investment
+### Investment
 
-**Initial implementation:** 2 days (16 hours)
-- Directory restructuring: 4 hours
-- Content creation: 4 hours
-- Template development: 6 hours
-- Link updates and validation: 2 hours
+The restructuring effort covered directory reorganisation, content creation, template development, and link validation. Completing these tasks established a maintainable foundation for future phases.
 
-**Total investment:** 2 days
+### Ongoing Benefits
 
-### Time Savings
-
-**Per phase documentation:**
-- Without templates: 10-12 hours
-- With templates: 4-6 hours
-- **Savings per phase:** 6 hours
-
-**Across 5 phases:**
-- Total savings: 6 hours × 4 remaining phases = 24 hours
-- **ROI:** 24 hours saved / 2 days invested = **300% return**
-
-### Quality Improvements
-
-**Unmeasurable benefits:**
-- Professional documentation suitable for portfolio
-- Easier onboarding for contributors
-- Faster troubleshooting with organized playbooks
-- Reduced confusion from clear phase separation
-- Better maintainability over 2+ year project timeline
+- Templates and phase structure keep documentation effort predictable as new phases are added.
+- Contributors can focus on content rather than formatting or directory management.
+- Organised troubleshooting playbooks speed up incident response.
+- Clear separation between phases reduces confusion and supports long-term maintainability.
 
 ---
 

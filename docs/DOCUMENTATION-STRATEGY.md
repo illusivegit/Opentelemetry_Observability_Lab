@@ -536,43 +536,28 @@ done
 ### Documentation Health
 - ✅ No file over 1,500 lines
 - ✅ Every troubleshooting issue has a playbook
-- ✅ All design decisions documented within 24h
+- ✅ Design decisions captured promptly after implementation
 - ✅ Zero broken links (CI enforced)
 
 ### Usability
-- ✅ New contributor can find Phase 1 setup in <5 minutes
-- ✅ Troubleshooting playbook resolves issue without external search
+- ✅ New contributors can locate Phase 1 setup quickly via the docs index
+- ✅ Troubleshooting playbook resolves issues without external search
 - ✅ Architecture diagram matches deployed state (validated regularly)
 
 ### Maintenance
-- ✅ Adding Phase N takes <4 hours (copy templates, fill in)
-- ✅ Updating cross-cutting docs takes <2 hours
-- ✅ Archiving old phase takes <1 hour
+- ✅ Adding a new phase is straightforward (copy templates, fill in content)
+- ✅ Cross-cutting docs are simple to update alongside new learnings
+- ✅ Archiving an old phase follows a predictable checklist
 
 ---
 
 ## Rollout Plan
 
-### Week 1: Restructure Phase 1
-- Day 1-2: Create directory structure, move files
-- Day 3: Extract cross-cutting content
-- Day 4: Create templates
-- Day 5: Test all links, update README.md
-
-### Week 2: Validate with Phase 2 Planning
-- Use templates to outline Phase 2 docs
-- Identify missing cross-cutting topics
-- Refine templates based on Phase 2 needs
-
-### Week 3: Automation
-- Create link checker
-- Create index generator
-- Set up GitHub Actions
-
-### Week 4: Documentation
-- Update JOURNEY.md with new structure
-- Create this DOCUMENTATION-STRATEGY.md
-- Get feedback from potential contributors
+1. Restructure Phase 1 documentation (directories, moved files).
+2. Extract cross-cutting content and create reusable templates.
+3. Validate the structure by outlining the next phase with the templates.
+4. Add automation (link checker, index generator, CI) to enforce standards.
+5. Update narrative docs and gather feedback from prospective contributors.
 
 ---
 
