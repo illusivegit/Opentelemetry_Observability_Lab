@@ -133,7 +133,6 @@ This is **milestone 1** of the **On-Prem Domain**—a comprehensive learning pat
 
 ### Grafana Observability Stack
 
-#### Grafana Home
 ![Grafana Homepage](pics/grafana1_homepage.png)
 *Main Grafana dashboard showing available data sources and dashboards*
 
@@ -144,13 +143,14 @@ This is **milestone 1** of the **On-Prem Domain**—a comprehensive learning pat
 ![Tracing Dashboard](pics/grafana2_homepage_dashboards_end-to-end_tracing_dashboard.png)
 
 ![Detailed Trace View](pics/grafana2_homepage_dashboards_end-to-end_tracing_dashboard2.png)
-*Distributed trace visualization showing browser → backend → database spans*
+![Detailed Trace View](pics/grafana2_homepage_dashboards_end-to-end_tracing_dashboard3.png)
+*Correlates traces, logs, and services for faster debugging and performance insight*
 
 #### SLI/SLO Dashboard
 ![SLI/SLO Overview](pics/grafana3_homepage_dashboards_SLI_SLO_Dashboard_Task-Manager.png)
 
 ![SLI/SLO Details](pics/grafana3_homepage_dashboards_SLI_SLO_Dashboard_Task-Manager2.png)
-*Detailed SLO metrics with database performance tracking and error budget visualization*
+*Real-time monitoring of service reliability, performance, and error rates*
 
 ---
 
@@ -168,7 +168,7 @@ Not cloud. Not managed services. **Bare metal virtualization** using KVM/QEMU/li
 
 ### 🔄 Deployed via CI/CD Pipeline
 
-Automated deployment through **containerized Jenkins** with Docker agents, SSH-based deployment, and HashiCorp Vault for secrets management.
+Automated deployment through **containerized Jenkins** with Docker agents and SSH-based deployment. Secrets are managed manually in this iteration; prior builds used HashiCorp Vault and that integration returns in a later phase.
 
 **Pipeline Features:**
 - Git-based source control
@@ -187,12 +187,11 @@ See: [docs/phase-1-docker-compose/ARCHITECTURE.md - CI/CD Pipeline Architecture]
 
 ### 📊 Production-Ready Observability
 
-Not a toy demo. This stack implements:
+This stack implements:
 - **SLI/SLO tracking** (service availability >99%, P95 latency <500ms)
 - **Distributed tracing** across all tiers (browser → backend → database)
 - **Trace-log correlation** (click trace_id in logs → jump to full trace)
 - **Pre-built Grafana dashboards** (SLI/SLO, end-to-end tracing)
-- **Error budget visualization** (track SLO compliance)
 
 ### 📚 Comprehensive Documentation
 
@@ -375,6 +374,8 @@ ssh ${VM_USER}@${VM_IP} "
 | **[Deployment Verification](docs/phase-1-docker-compose/deployment-verification.md)** | Step-by-step post-deployment validation | 4,000 words |
 | **[Troubleshooting](docs/phase-1-docker-compose/troubleshooting/)** | Operational playbooks for common issues | 8,000 words |
 
+Troubleshooting quick links: [Common Verification Issues](docs/phase-1-docker-compose/troubleshooting/common-verification-issues.md), [Troubleshooting Journey](docs/phase-1-docker-compose/troubleshooting/troubleshooting-journey.md), [Nginx `proxy_pass` Options](docs/phase-1-docker-compose/troubleshooting/nginx-proxy-pass-options.md)
+
 ### Cross-Cutting Knowledge
 
 | Document | Purpose | Size |
@@ -459,14 +460,14 @@ histogram_quantile(0.95, sum(rate(db_query_duration_seconds_bucket[5m])) by (le,
 │  │            KVM/QEMU/Libvirt Hypervisor                    │  │
 │  │  ┌─────────────────────────────────────────────────────┐  │  │
 │  │  │  VM: 192.168.122.250 (Application VM)               │  │  │
-│  │  │  • Docker Engine                                     │  │  │
-│  │  │  • Observability Stack (7 containers)                │  │  │
+│  │  │  • Docker Engine                                    │  │  │
+│  │  │  • Observability Stack (7 containers)               │  │  │
 │  │  └─────────────────────────────────────────────────────┘  │  │
 │  │  ┌─────────────────────────────────────────────────────┐  │  │
 │  │  │  VM: 192.168.122.x (Jenkins VM)                     │  │  │
-│  │  │  • Jenkins Controller                                │  │  │
-│  │  │  • Docker Agents                                     │  │  │
-│  │  │  • HashiCorp Vault                                   │  │  │
+│  │  │  • Jenkins Controller                               │  │  │
+│  │  │  • Docker Agents                                    │  │  │
+│  │  │  • HashiCorp Vault (returning in later phases)      │  │  │
 │  │  └─────────────────────────────────────────────────────┘  │  │
 │  └───────────────────────────────────────────────────────────┘  │
 └─────────────────────────────────────────────────────────────────┘
@@ -477,27 +478,27 @@ histogram_quantile(0.95, sum(rate(db_query_duration_seconds_bucket[5m])) by (le,
 ```
 ┌─────────────────────────────────────────────────────────────────┐
 │  Docker Network: otel-network (bridge)                          │
-│                                                                  │
-│  ┌──────────────┐      ┌──────────────┐      ┌──────────────┐  │
-│  │  Frontend    │      │  Backend     │      │  OTel        │  │
-│  │  (Nginx)     │─────▶│  (Flask)     │─────▶│  Collector   │  │
-│  │  Port: 8080  │      │  Port: 5000  │      │  Port: 4318  │  │
-│  └──────────────┘      └──────┬───────┘      └──────┬───────┘  │
-│                               │                     │          │
-│                               ▼                     ▼          │
-│                        ┌──────────────┐      ┌──────────────┐  │
-│                        │  SQLite      │      │  Tempo       │  │
-│                        │  Database    │      │  (Traces)    │  │
-│                        └──────────────┘      │  Prometheus  │  │
-│                                              │  (Metrics)   │  │
-│                                              │  Loki (Logs) │  │
-│                                              └──────┬───────┘  │
-│                                                     │          │
-│                                                     ▼          │
-│                                              ┌──────────────┐  │
-│                                              │  Grafana     │  │
-│                                              │  Port: 3000  │  │
-│                                              └──────────────┘  │
+│                                                                 │
+│  ┌──────────────┐      ┌──────────────┐      ┌──────────────┐   │
+│  │  Frontend    │      │  Backend     │      │  OTel        │   │
+│  │  (Nginx)     │─────▶│  (Flask)     │─────▶│  Collector   │   │
+│  │  Port: 8080  │      │  Port: 5000  │      │  Port: 4318  │   │
+│  └──────────────┘      └──────┬───────┘      └──────┬───────┘   │
+│                               │                     │           │
+│                               ▼                     ▼           │
+│                        ┌──────────────┐      ┌──────────────┐   │
+│                        │  SQLite      │      │  Tempo       │   │
+│                        │  Database    │      │  (Traces)    │   │
+│                        └──────────────┘      │  Prometheus  │   │
+│                                              │  (Metrics)   │   │
+│                                              │  Loki (Logs) │   │
+│                                              └──────┬───────┘   │
+│                                                     │           │
+│                                                     ▼           │
+│                                              ┌──────────────┐   │
+│                                              │  Grafana     │   │
+│                                              │  Port: 3000  │   │
+│                                              └──────────────┘   │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
@@ -560,7 +561,7 @@ histogram_quantile(0.95, sum(rate(db_query_duration_seconds_bucket[5m])) by (le,
 | **Jenkins** | LTS (JDK 17) | CI/CD controller |
 | **Docker** | 20.10+ | Containerization |
 | **Docker Compose** | 2.0+ | Multi-container orchestration |
-| **HashiCorp Vault** | Latest | Secrets management |
+| **HashiCorp Vault** | Latest | Previously integrated; returns in future phase |
 | **rsync** | 3.2.7 | File synchronization to VMs |
 
 ---
@@ -592,7 +593,7 @@ histogram_quantile(0.95, sum(rate(db_query_duration_seconds_bucket[5m])) by (le,
 - ✅ Jenkins pipeline design (Groovy syntax, stages, agents)
 - ✅ SSH-based deployment (rsync, sshagent, remote execution)
 - ✅ Docker context management
-- ✅ Secrets management (Vault integration)
+- ✅ Secrets management 
 - ✅ Pipeline smoke tests and health checks
 
 **Security:**
@@ -627,68 +628,65 @@ histogram_quantile(0.95, sum(rate(db_query_duration_seconds_bucket[5m])) by (le,
 - ✅ Pre-built Grafana dashboards (SLI/SLO)
 - ✅ Comprehensive documentation (125,000+ words)
 
-### Phase 2: Advanced CI/CD & Security (Next 3-6 Months)
-
-**Pre-Commit Hooks:**
-- Host IDE: `black`, `flake8`, `prettier`, `detect-secrets`
-- GitHub: Branch protection, pre-receive hooks
+### Phase 2: Policy as Code & Secure Delivery
 
 **Policy as Code:**
-- Learn Rego (OPA policy language)
-- Implement Conftest CLI in pipeline
-- Enforce: No root containers, resource limits, no hardcoded secrets
+- Deepen Rego (OPA policy language) skills and build reusable policy libraries
+- Enforce container and infrastructure guardrails with Conftest in Jenkins
+- Block risky configurations (privileged containers, missing resource limits, hardcoded secrets)
 
-**Security Scanning Pipeline:**
-- SonarQube (SAST - code quality, security vulnerabilities)
-- Snyk (dependency scanning - Python, JavaScript)
-- Trivy (container image scanning)
-- JFrog Artifactory + Xray (artifact versioning, compliance)
+**Shift-Left Security & Testing:**
+- SonarQube for SAST and code quality gates
+- Snyk for dependency scanning (Python, JavaScript)
+- Trivy for container image scanning
+- OWASP ZAP or Burp Suite automation for DAST smoke coverage
 
-**Quality Gates:**
-- Pipeline fails on high/critical vulnerabilities
-- Auto-create Jira tickets with remediation steps
-- Slack notifications to #devsecops channel
+**Artifact & Credential Management:**
+- Stand up JFrog Artifactory for immutable artifact storage
+- Enable provenance/attestation on Docker images
+- Bring back Vault to issue short-lived credentials to the pipeline
 
-**Server Hardening:**
-- Implement comprehensive Linux hardening (fail2ban, UFW firewall, kernel tuning)
-- Reference: [How To Secure A Linux Server](https://github.com/imthenachoman/How-To-Secure-A-Linux-Server)
-- Incremental implementation: SSH keys (done) → fail2ban → firewall → HIDS → audit logging
+**Operational Guardrails:**
+- Expand pre-commit hooks (`black`, `flake8`, `prettier`, `detect-secrets`)
+- Add branch protection plus Gerrit-style reviews
+- Harden servers incrementally (fail2ban, UFW, auditd)
 
-### Phase 3: Kubernetes Migration (6-12 Months)
+_Backlog carried forward from earlier roadmap:_
+- **Server Hardening:** Implement comprehensive Linux hardening (fail2ban, UFW firewall, kernel tuning); reference [How To Secure A Linux Server](https://github.com/imthenachoman/How-To-Secure-A-Linux-Server); follow the sequence SSH keys (done) → fail2ban → firewall → HIDS → audit logging
+- **Artifact & Credential Management:** Stand up JFrog Artifactory for immutable artifact storage; enable provenance/attestation on Docker images; bring back Vault to issue short-lived credentials to the pipeline
 
-**Goals:**
-- Migrate from Docker Compose → Kubernetes manifests
-- Create Helm charts for observability stack
-- Replace SQLite → PostgreSQL StatefulSet
-- Deploy to on-prem K8s cluster (kubeadm on VMs)
+### Phase 3: Kubernetes Refactoring & Platform Automation
 
-**New Skills:**
-- Kubernetes networking (Services, Ingress, NetworkPolicies)
-- Persistent storage (PVCs, StorageClasses, dynamic provisioning)
-- StatefulSets vs. Deployments
-- Helm templating (values.yaml, chart dependencies)
-- Service mesh integration (Istio/Linkerd for automatic observability)
+**Core Platform Moves:**
+- Refactor Docker Compose services into Kubernetes manifests
+- Package workloads with Helm charts and reusable values files
+- Migrate SQLite to PostgreSQL via StatefulSets and PersistentVolumes
 
-### Phase 4: Hybrid Cloud (12-18 Months)
+**Traffic & Observability Fabric:**
+- Adopt Istio with Envoy sidecars for mTLS, canary routing, and uniform telemetry
+- Standardize tracing/metrics exports with OpenTelemetry Collector on the cluster
 
-**Implement the 5 R's of Cloud Migration:**
+**GitOps & Automation:**
+- Introduce ArgoCD for declarative deployments
+- Use Ansible playbooks for VM provisioning, kubeadm bootstrap, and Day 2 ops
+- Establish automated smoke tests per Helm release
 
-1. **Rehost (Lift and Shift):** Deploy to AWS EKS / GCP GKE / Azure AKS
-2. **Replatform (Lift, Tinker, Shift):** Use managed Prometheus, RDS/Cloud SQL
-3. **Refactor (Re-architect):** Decompose to microservices, use cloud messaging
-4. **Repurchase (SaaS):** Evaluate Datadog vs. self-hosted (cost/features)
-5. **Relocate (Hypervisor Lift-and-Shift):** AWS MGN / Azure Migrate
+### Phase 4: Cloud-Native AWS Migration (ECS & EKS Iteration)
 
-**Hybrid Architecture:**
-- Dev/test on-prem (KVM VMs)
-- Prod in cloud (managed Kubernetes)
-- Unified observability (Grafana queries both)
+**Hybrid Footprint:**
+- Keep on-prem lab for experimentation while iterating on AWS landing zone
+- Create secure connectivity (Site-to-Site VPN or AWS Direct Connect)
 
-### Phase 5: Advanced Topics (18+ Months)
+**AWS Platform Work:**
+- Lift Kubernetes workloads onto Amazon EKS with managed node groups
+- Evaluate selective workloads on Amazon ECS/Fargate for cost/perf trade-offs
+- Swap self-hosted telemetry components with AWS managed services (Managed Prometheus, Managed Grafana, X-Ray)
+- Migrate secrets and configuration to AWS Secrets Manager and Parameter Store
 
-- Ansible automation (playbooks for VM provisioning, K8s deployment)
-- Complex networking (BGP routing, multi-region, private service mesh)
-- Bare metal self-hosting (Talos Linux, home lab with rack servers)
+**Modernization Loop:**
+- Incrementally decompose monolith into domain-driven services
+- Leverage EventBridge/SQS for asynchronous flows
+- Measure success with FinOps dashboards comparing on-prem vs. AWS spend
 
 **Full Roadmap:** [ARCHITECTURE.md - Future Roadmap](ARCHITECTURE.md#future-roadmap)
 

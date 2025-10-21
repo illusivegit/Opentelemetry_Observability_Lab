@@ -220,7 +220,7 @@ Client → Load Balancer → Service A → Service B → Database
 | File | Location | Purpose |
 |------|----------|---------|
 | `config.yml` | `/etc/app/` | Main configuration |
-| `secrets.env` | Vault | Sensitive data |
+| `secrets.env` | Vault (planned) | Sensitive data |
 
 ---
 

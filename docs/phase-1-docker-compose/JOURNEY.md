@@ -225,7 +225,7 @@ jenkins-net (Docker bridge network)
   │    • Executes pipeline stages
   │    • Connects to controller via JNLP
   │
-  └─ HashiCorp Vault (vault:latest)
+  └─ HashiCorp Vault (vault:latest - paused for this phase)
        • Port 8200: Secrets API
        • Volume: vault_server_volume
 ```
@@ -599,7 +599,7 @@ After weeks of debugging, refactoring, and documenting, I had a **production-gra
 **Infrastructure:**
 - KVM/libvirt virtualization on Debian 13 (simulates on-prem data center)
 - Containerized Jenkins with Docker agents (CI/CD control plane)
-- HashiCorp Vault for secrets management
+- Secrets managed manually in this iteration (Vault integration returns later)
 - SSH-based deployment pipeline (rsync + docker compose)
 
 **Application:**
@@ -646,93 +646,67 @@ After weeks of debugging, refactoring, and documenting, I had a **production-gra
 
 This isn't the end—it's **milestone 1** in a multi-year learning journey.
 
-### Phase 2: Advanced CI/CD & Security (Planned)
-
-**Pre-Commit Hooks:**
-- Host IDE: `black`, `flake8`, `prettier`, `detect-secrets`
-- GitHub: Branch protection, pre-receive hooks
-- Goal: Bad code never hits the pipeline
+### Phase 2: Policy as Code & Secure Delivery (Planned)
 
 **Policy as Code:**
-- Learn Rego (OPA's policy language)
-- Enforce: No root containers, resource limits defined, secrets not hardcoded
-- Tool: Conftest CLI in Jenkins pipeline
+- Deepen Rego expertise and build reusable policy libraries
+- Enforce container guardrails with Conftest in Jenkins (no privileged pods, resource limits, blocked hardcoded secrets)
+- Capture policy violations as structured pipeline output
 
-**Security Scanning:**
-- SonarQube (SAST - code quality and security)
-- Snyk (dependency vulnerabilities)
-- Trivy (container image scanning)
-- JFrog Artifactory + Xray (artifact versioning and compliance)
+**Shift-Left Security:**
+- SonarQube for SAST gates
+- Snyk for dependency scanning (Python + JavaScript)
+- Trivy for container images
+- OWASP ZAP automation for lightweight DAST
 
-**Quality Gates:**
-- Pipeline fails if: High/critical vulnerabilities found, code coverage < 80%, security policy violations
-- Auto-create Jira tickets on failure with remediation steps
+**Artifact & Secrets Management:**
+- Stand up JFrog Artifactory for immutable artifacts with provenance
+- Reintroduce Vault to mint short-lived credentials for the pipeline
+- Expand pre-commit hooks (`black`, `flake8`, `prettier`, `detect-secrets`)
 
-### Phase 3: Kubernetes Migration (Planned)
+**Operational Hardening:**
+- Implement fail2ban, UFW, auditd, and MFA for privileged access
+- Add branch protection and chatops notifications on gate failures
 
-**Why Kubernetes:**
-- Multi-node orchestration (current setup is single-VM)
-- Service mesh integration (Istio/Linkerd for automatic observability)
-- Industry standard (95% of Fortune 500 use K8s in some capacity)
+### Phase 3: Kubernetes Refactoring & Platform Automation (Planned)
+
+**Why Kubernetes Now:**
+- Multi-node orchestration and horizontal scalability
+- Service mesh adoption (Istio with Envoy) for uniform telemetry and mTLS
+- Align with industry-standard platform operations
 
 **Migration Path:**
-1. Convert docker-compose.yml to Kubernetes manifests (Kompose tool)
-2. Create Helm charts for observability stack
-3. Replace SQLite → PostgreSQL StatefulSet
-4. Add Ingress controller (Nginx Ingress)
-5. Deploy to on-prem K8s cluster (kubeadm on VMs)
+1. Convert `docker-compose.yml` to Kubernetes manifests (Kompose as a starting point)
+2. Package workloads into Helm charts with reusable values files
+3. Replace SQLite with a PostgreSQL StatefulSet and PersistentVolumes
+4. Install Nginx Ingress Controller and enable HTTPS termination
+5. Automate cluster provisioning via kubeadm + Ansible playbooks
 
-**New Skills:**
-- Kubernetes networking (Services, ClusterIP, LoadBalancer)
-- Persistent storage (PVCs, StorageClasses)
-- Helm templating (values.yaml, chart dependencies)
-- StatefulSets vs. Deployments
-- Service mesh (Istio: mTLS, traffic management, automatic tracing)
+**Automation & GitOps:**
+- Introduce ArgoCD for declarative deployments
+- Run smoke/integration tests per Helm release
+- Capture platform runbooks as Ansible roles
 
-### Phase 4: Hybrid Cloud (Planned)
+### Phase 4: Cloud-Native AWS Migration (Planned)
 
-Implement the **5 R's of Cloud Migration** using on-prem stack as source:
+**Landing Zone & Connectivity:**
+- Build an AWS VPC with segmented subnets, IAM guardrails, and GuardDuty
+- Establish Site-to-Site VPN (and eventually Direct Connect) from the lab
 
-1. **Rehost (Lift and Shift):**
-   - Deploy to AWS EKS / GCP GKE / Azure AKS
-   - Minimal code changes, just infrastructure
+**Container Platforms:**
+- Lift Kubernetes workloads to Amazon EKS with managed node groups and Fargate
+- Evaluate Amazon ECS/Fargate for select stateless services
+- Swap Kubernetes storage classes for AWS-native equivalents (EBS, EFS)
 
-2. **Replatform (Lift, Tinker, Shift):**
-   - Replace self-managed Prometheus → AWS Managed Prometheus
-   - Replace PostgreSQL → RDS/Cloud SQL
+**Managed Observability & Secrets:**
+- Replace self-hosted Prometheus/Grafana/Tempo/Loki with AWS Managed Prometheus, Managed Grafana, X-Ray, and CloudWatch Logs
+- Move secrets/configuration into AWS Secrets Manager and Parameter Store
+- Stream pipeline events into AWS services for centralized auditing
 
-3. **Refactor (Re-architect):**
-   - Decompose Flask monolith into microservices
-   - Use cloud-native messaging (SQS, Pub/Sub)
-
-4. **Repurchase (SaaS):**
-   - Replace self-hosted observability → Datadog/Honeycomb
-   - Evaluate trade-offs (cost vs. features vs. vendor lock-in)
-
-5. **Relocate (Hypervisor Lift-and-Shift):**
-   - Use AWS MGN / Azure Migrate to move VMs wholesale
-
-**Hybrid Architecture:**
-- Dev/test on-prem (KVM VMs)
-- Prod in cloud (managed Kubernetes)
-- Unified observability (Grafana queries both environments)
-
-### Phase 5: Advanced Topics (Planned)
-
-**Ansible Automation:**
-- Replace manual VM provisioning with playbooks
-- `provision-vm.yml`, `deploy-k8s.yml`, `deploy-observability.yml`
-- Idempotent infrastructure (run repeatedly without side effects)
-
-**Complex Networking:**
-- BGP routing between on-prem and cloud
-- Multi-region deployments with latency-based routing
-- Private service mesh across hybrid environments
-
-**Bare Metal Self-Hosting:**
-- Migrate from VMs → bare metal Kubernetes (Talos Linux)
-- Build home lab with mini PCs or rack servers
-- Simulate data center operations (IPMI, network topology, power/cooling)
+**Modernization Loop:**
+- Decompose the application strategically (task-service, auth-service, notification-service)
+- Introduce EventBridge/SQS/SNS to decouple asynchronous flows
+- Track cost and performance deltas with FinOps dashboards
 
 ---
 
@@ -800,10 +774,9 @@ This observability lab is **milestone 1** in a multi-year journey to become a co
 - ✅ Comprehensive documentation (architecture, design decisions, this journey)
 
 **What's Next:**
-- Phase 2: Advanced security (OPA, Snyk, Trivy, Artifactory)
-- Phase 3: Kubernetes migration (StatefulSets, Helm, service mesh)
-- Phase 4: Hybrid cloud experimentation (5 R's migration)
-- Phase 5: Bare metal self-hosting (Ansible, BGP, home lab)
+- Phase 2: Policy as code & secure delivery (OPA, Vault, SonarQube/Snyk/Trivy, Artifactory)
+- Phase 3: Kubernetes refactoring & automation (Helm, ArgoCD, Istio/Envoy, Ansible)
+- Phase 4: Cloud-native AWS migration (ECS/EKS iteration, managed telemetry, EventBridge/SQS)
 
 **Why Share This?**
 

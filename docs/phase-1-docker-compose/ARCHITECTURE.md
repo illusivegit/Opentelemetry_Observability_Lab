@@ -2,7 +2,7 @@
 
 ## From Theory to Practice: Building a Production-Grade Monitoring Stack
 
-**Version:** 2.0
+**Version:** 1.0
 **Status:** Production-Ready Proof of Concept
 **Last Updated:** 2025-10-20
 
@@ -26,11 +26,10 @@ This isn't just an observability lab. It's:
 
 This proof of concept is the **first milestone** in a larger vision:
 
-1. **Current State (You Are Here):** Docker Compose observability stack on VM
-2. **Phase 2:** Policy as Code (OPA/Rego), advanced SAST/DAST, artifact management
-3. **Phase 3:** Kubernetes migration, Ansible automation, complex networking
-4. **Phase 4:** Hybrid cloud implementation using the 5 R's migration strategies
-5. **Phase 5:** Self-hosted production infrastructure on bare metal
+1. **Current State:** Docker Compose observability stack on VM
+2. **Phase 2:** Policy as Code (OPA/Rego), SAST/DAST, artifact management
+3. **Phase 3:** Ansible automation, kubernetes refactoring, Istio, Envoy, ArgoCD, Helm, 
+4. **Phase 4:** Cloud-native AWS migration, ECS & EKS iteration
 
 ---
 
@@ -108,23 +107,22 @@ This project runs on a **virtualized on-premises environment** that simulates en
 ┌─────────────────────────────────────────────────────────────────────────┐
 │                   GUEST VMs (Running on Hypervisor)                     │
 │                                                                         │
-│  ┌──────────────────────┐         ┌──────────────────────┐             │
-│  │  Jenkins VM          │         │  Application VM      │             │
-│  │  (192.168.122.x)     │         │  (192.168.122.250)   │             │
-│  │                      │         │                      │             │
-│  │  • Jenkins Controller│────────▶│  • Docker Engine     │             │
-│  │  • Docker Agents     │  Deploy │  • Observability App │             │
-│  │  • HashiCorp Vault   │         │  • Prometheus/Grafana│             │
-│  └──────────────────────┘         └──────────────────────┘             │
+│  ┌──────────────────────┐         ┌──────────────────────┐              │
+│  │  Jenkins VM          │         │  Application VM      │              │
+│  │  (192.168.122.x)     │         │  (192.168.122.250)   │              │ 
+│  │  • Jenkins Controller│────────▶│  • Docker Engine     │              │
+│  │  • Docker Agents     │  Deploy │  • Observability App │              │
+│  │  • Vault experiments (paused this phase)              │              |                               
+│  │                      │         │  • Prometheus/Grafana│              │
+│  └──────────────────────┘         └──────────────────────┘              │
 └─────────────────────────────────────────────────────────────────────────┘
 ```
-
 ### Why This Architecture?
 
 **Enterprise Realism:**
 - Mirrors real-world on-prem environments (VMware ESXi, Proxmox, Hyper-V patterns)
 - Simulates bare-metal → hypervisor → VM → container stack
-- Provides networking complexity similar to production data centers
+- Replicates network patterns found in on-prem setups
 
 **Flexibility:**
 - Easy to snapshot/clone VMs for testing
@@ -158,17 +156,17 @@ The observability application is deployed via a **containerized Jenkins setup** 
 │  │  │  Persistent Storage: jenkins_home volume                   │  │   │
 │  │  │  • Job definitions (XML configs)                           │  │   │
 │  │  │  • Build history & artifacts                               │  │   │
-│  │  │  • Installed plugins                                        │  │   │
-│  │  │  • Credentials (encrypted)                                  │  │   │
+│  │  │  • Installed plugins                                       │  │   │
+│  │  │  • Credentials (encrypted)                                 │  │   │
 │  │  └────────────────────────────────────────────────────────────┘  │   │
 │  │                                                                  │   │
 │  │  Exposed Ports:                                                  │   │
-│  │  • 8080: HTTP UI/API                                            │   │
-│  │  • 50000: JNLP inbound agent connection                         │   │
+│  │  • 8080: HTTP UI/API                                             │   │
+│  │  • 50000: JNLP inbound agent connection                          │   │
 │  └──────────────────────────────────────────────────────────────────┘   │
 │                                                                         │
 │  ┌──────────────────────────────────────────────────────────────────┐   │
-│  │  Inbound Docker Agent (custom image with jq, docker, rsync)     │   │
+│  │  Inbound Docker Agent (custom image with jq, docker, rsync)      │   │
 │  │  ┌────────────────────────────────────────────────────────────┐  │   │
 │  │  │  Runtime Configuration:                                    │  │   │
 │  │  │  • Connects via JNLP to controller:50000                   │  │   │
@@ -179,7 +177,7 @@ The observability application is deployed via a **containerized Jenkins setup** 
 │  └──────────────────────────────────────────────────────────────────┘   │
 │                                                                         │
 │  ┌──────────────────────────────────────────────────────────────────┐   │
-│  │  HashiCorp Vault (vault-server)                                 │   │
+│  │  HashiCorp Vault (returning later)                               │   │
 │  │  ┌────────────────────────────────────────────────────────────┐  │   │
 │  │  │  Secrets Management:                                       │  │   │
 │  │  │  • KV secrets engine                                       │  │   │
@@ -189,7 +187,7 @@ The observability application is deployed via a **containerized Jenkins setup** 
 │  │  └────────────────────────────────────────────────────────────┘  │   │
 │  │                                                                  │   │
 │  │  Exposed Ports:                                                  │   │
-│  │  • 8200: HTTP API & UI                                          │   │
+│  │  • 8200: HTTP API & UI                                           │   │
 │  └──────────────────────────────────────────────────────────────────┘   │
 └─────────────────────────────────────────────────────────────────────────┘
 ```
@@ -273,7 +271,6 @@ pipeline {
 **2. Remote File Sync (rsync)**
 - **Why:** Docker Compose bind mounts require files to exist on VM filesystem
 - **Example:** `frontend/default.conf` mounted into Nginx container
-- **Tradeoff:** Adds ~5 seconds to pipeline, eliminates "file not found" errors
 
 **3. Docker Context for Verification**
 - **Creation:** `docker context create vm-lab --docker "host=ssh://deploy@192.168.122.250"`
@@ -328,7 +325,7 @@ The deployed application is a **full-stack task manager** instrumented for obser
 ┌─────────────────────────────────────────────────────────────────────────┐
 │                        FRONTEND TIER                                    │
 │  ┌───────────────────────────────────────────────────────────────────┐  │
-│  │  Nginx (nginx:alpine) - Port 8080 (host) → 80 (container)        │  │
+│  │  Nginx (nginx:alpine) - Port 8080 (host) → 80 (container)         │  │
 │  │  ┌─────────────────────────────────────────────────────────────┐  │  │
 │  │  │  Static File Serving:                                       │  │  │
 │  │  │  • /usr/share/nginx/html/index.html (Task Manager UI)       │  │  │
@@ -339,17 +336,17 @@ The deployed application is a **full-stack task manager** instrumented for obser
 │  │  ┌─────────────────────────────────────────────────────────────┐  │  │
 │  │  │  Reverse Proxy (Solves CORS):                               │  │  │
 │  │  │  location /api/ {                                           │  │  │
-│  │  │    resolver 127.0.0.11 ipv6=off valid=30s;  # Docker DNS   │  │  │
+│  │  │    resolver 127.0.0.11 ipv6=off valid=30s;  # Docker DNS    │  │  │
 │  │  │    set $backend_upstream http://backend:5000;               │  │  │
 │  │  │    proxy_pass $backend_upstream;  # Variable-based routing  │  │  │
 │  │  │    proxy_set_header X-Real-IP $remote_addr;                 │  │  │
-│  │  │  }                                                           │  │  │
+│  │  │  }                                                          │  │  │
 │  │  └─────────────────────────────────────────────────────────────┘  │  │
 │  │                                                                   │  │
-│  │  Dynamic Link Generation (app.js):                               │  │
-│  │  • Grafana: http://${window.location.hostname}:3000              │  │
-│  │  • Prometheus: http://${window.location.hostname}:9090           │  │
-│  │  → Works on localhost, VM IP, or cloud hostname                  │  │
+│  │  Dynamic Link Generation (app.js):                                │  │
+│  │  • Grafana: http://${window.location.hostname}:3000               │  │
+│  │  • Prometheus: http://${window.location.hostname}:9090            │  │
+│  │  → Works on localhost, VM IP, or cloud hostname                   │  │
 │  └───────────────────────────────────────────────────────────────────┘  │
 └─────────────────────────────────────────────────────────────────────────┘
                               │
@@ -357,7 +354,7 @@ The deployed application is a **full-stack task manager** instrumented for obser
 ┌─────────────────────────────────────────────────────────────────────────┐
 │                         BACKEND TIER                                    │
 │  ┌───────────────────────────────────────────────────────────────────┐  │
-│  │  Flask API (Python 3.11) - Port 5000                             │  │
+│  │  Flask API (Python 3.11) - Port 5000                              │  │
 │  │  ┌─────────────────────────────────────────────────────────────┐  │  │
 │  │  │  Application Framework:                                     │  │  │
 │  │  │  • Flask 3.0 - Lightweight web framework                    │  │  │
@@ -379,20 +376,20 @@ The deployed application is a **full-stack task manager** instrumented for obser
 │  │                                                                   │  │
 │  │  ┌─────────────────────────────────────────────────────────────┐  │  │
 │  │  │  Instrumentation Layer (3 Pillars):                         │  │  │
-│  │  │                                                              │  │  │
-│  │  │  ① TRACES (OpenTelemetry SDK)                               │  │  │
+│  │  │                                                             │  │  │
+│  │  │  ① TRACES (OpenTelemetry SDK)                              [] [] []
 │  │  │    • FlaskInstrumentor: HTTP request/response spans         │  │  │
 │  │  │    • SQLAlchemyInstrumentor: DB query spans                 │  │  │
 │  │  │    • OTLP Exporter → otel-collector:4318/v1/traces          │  │  │
-│  │  │                                                              │  │  │
-│  │  │  ② METRICS (Prometheus Client)                              │  │  │
+│  │  │                                                             │  │  │
+│  │  │  ② METRICS (Prometheus Client)                             [] [] []
 │  │  │    • prom_http_requests_total (Counter)                     │  │  │
 │  │  │    • prom_http_request_duration_seconds (Histogram)         │  │  │
 │  │  │    • prom_http_errors_total (Counter)                       │  │  │
 │  │  │    • prom_db_query_duration_seconds (Histogram)             │  │  │
 │  │  │    • Exposed at /metrics for Prometheus scraping            │  │  │
-│  │  │                                                              │  │  │
-│  │  │  ③ LOGS (OpenTelemetry SDK)                                 │  │  │
+│  │  │                                                             │  │  │
+│  │  │  ③ LOGS (OpenTelemetry SDK)                                [] [] []  
 │  │  │    • Structured JSON logging (stdlib logging)               │  │  │
 │  │  │    • Automatic trace_id/span_id injection                   │  │  │
 │  │  │    • OTLP Exporter → otel-collector:4318/v1/logs            │  │  │
@@ -401,13 +398,13 @@ The deployed application is a **full-stack task manager** instrumented for obser
 │  │  ┌─────────────────────────────────────────────────────────────┐  │  │
 │  │  │  Critical Design Fix: Application Context                   │  │  │
 │  │  │  Problem: SQLAlchemy event listeners caused RuntimeError    │  │  │
-│  │  │  Solution:                                                   │  │  │
+│  │  │  Solution:                                                  │  │  │
 │  │  │    def before_cursor_execute(...):  # Plain function        │  │  │
 │  │  │        # Record query start time                            │  │  │
-│  │  │                                                              │  │  │
-│  │  │    with app.app_context():  # Activate Flask context       │  │  │
-│  │  │        event.listen(db.engine, 'before_cursor_execute', ...) │  │  │
-│  │  │        event.listen(db.engine, 'after_cursor_execute', ...)  │  │  │
+│  │  │                                                             │  │  │
+│  │  │    with app.app_context():  # Activate Flask context        │  │  │
+│  │  │        event.listen(db.engine, 'before_cursor_execute', ...)│  │  │
+│  │  │        event.listen(db.engine, 'after_cursor_execute', ...) │  │  │
 │  │  └─────────────────────────────────────────────────────────────┘  │  │
 │  └───────────────────────────────────────────────────────────────────┘  │
 └─────────────────────────────────────────────────────────────────────────┘
@@ -417,7 +414,7 @@ The deployed application is a **full-stack task manager** instrumented for obser
 │                         DATA TIER                                       │
 │  ┌───────────────────────────────────────────────────────────────────┐  │
 │  │  SQLite Database                                                  │  │
-│  │  Path: /app/data/tasks.db (absolute path - critical!)            │  │
+│  │  Path: /app/data/tasks.db (absolute path - critical!)             │  │
 │  │  Volume: backend-data (named volume for persistence)              │  │
 │  │                                                                   │  │
 │  │  Schema:                                                          │  │
@@ -473,7 +470,7 @@ The deployed application is a **full-stack task manager** instrumented for obser
 │  PILLAR 1: TRACES (OpenTelemetry)                                │
 │  • FlaskInstrumentor: HTTP spans                                 │
 │  • SQLAlchemyInstrumentor: DB query spans                        │
-│  • Export: OTLP → Collector → Tempo                             │
+│  • Export: OTLP → Collector → Tempo                              │
 │                                                                  │
 │  PILLAR 2: METRICS (Prometheus Client)                           │
 │  • prometheus_client library (NOT OTel SDK)                      │
@@ -484,7 +481,7 @@ The deployed application is a **full-stack task manager** instrumented for obser
 │  PILLAR 3: LOGS (OpenTelemetry)                                  │
 │  • Structured JSON logging                                       │
 │  • Automatic trace_id/span_id injection                          │
-│  • Export: OTLP → Collector → Loki                              │
+│  • Export: OTLP → Collector → Loki                               │
 │                                                                  │
 └──────────────────────────────────────────────────────────────────┘
 ```
@@ -505,15 +502,15 @@ USER REQUEST (POST /api/tasks)
 │  FLASK BACKEND                                                 │
 │                                                                │
 │  @app.before_request:                                          │
-│  • Start timer: g.prom_start_time = time.time()               │
-│  • Log: "Incoming request" (with trace_id)                    │
-│  • OTel creates root span                                     │
+│  • Start timer: g.prom_start_time = time.time()                │
+│  • Log: "Incoming request" (with trace_id)                     │
+│  • OTel creates root span                                      │
 │                                                                │
-│  Route Handler (create_task):                                 │
-│  • OTel custom span: "create_task"                            │
-│  • Set span attribute: task.title="Example"                   │
-│  • db.session.add(new_task)                                   │
-│  • db.session.commit() ──────────────┐                        │
+│  Route Handler (create_task):                                  │
+│  • OTel custom span: "create_task"                             │
+│  • Set span attribute: task.title="Example"                    │
+│  • db.session.add(new_task)                                    │
+│  • db.session.commit() ──────────────┐                         │
 │                                       │                        │
 │  @app.after_request:                  │                        │
 │  • Calculate duration                 │                        │
@@ -605,22 +602,22 @@ USER REQUEST (POST /api/tasks)
 │  ┌───────────────────────────────────────────────────────────┐  │
 │  │  Dashboards:                                              │  │
 │  │  • SLI/SLO Dashboard - Task Manager                       │  │
-│  │    - Service Availability: (1 - errors/total) * 100      │  │
-│  │    - P95 Latency: histogram_quantile(0.95, ...)          │  │
-│  │    - Request Rate: rate(http_requests_total[5m])         │  │
-│  │    - DB P95 Latency: histogram_quantile(0.95,            │  │
-│  │        db_query_duration_seconds_bucket[5m])             │  │
+│  │    - Service Availability: (1 - errors/total) * 100       │  │
+│  │    - P95 Latency: histogram_quantile(0.95, ...)           │  │
+│  │    - Request Rate: rate(http_requests_total[5m])          │  │
+│  │    - DB P95 Latency: histogram_quantile(0.95,             │  │
+│  │        db_query_duration_seconds_bucket[5m])              │  │
 │  │                                                           │  │
-│  │  • End-to-End Tracing Dashboard                          │  │
-│  │    - Service dependency map                              │  │
-│  │    - Trace timeline visualization                        │  │
+│  │  • End-to-End Tracing Dashboard                           │  │
+│  │    - Service dependency map                               │  │
+│  │    - Trace timeline visualization                         │  │
 │  └───────────────────────────────────────────────────────────┘  │
 │                                                                 │
 │  ┌───────────────────────────────────────────────────────────┐  │
 │  │  Correlation Features:                                    │  │
-│  │  • Trace → Logs: Click "Logs for this span" in Tempo     │  │
-│  │  • Logs → Trace: Click trace_id in Loki log entry        │  │
-│  │  • Metrics → Traces: (Future) Exemplars for latency spikes│ │
+│  │  • Trace → Logs: Click "Logs for this span" in Tempo      │  │
+│  │  • Logs → Trace: Click trace_id in Loki log entry         │  │
+│  │  • Metrics → Traces: (Future) Exemplars for latency spikes│  │
 │  └───────────────────────────────────────────────────────────┘  │
 └─────────────────────────────────────────────────────────────────┘
 ```
@@ -664,7 +661,7 @@ USER REQUEST (POST /api/tasks)
 │  │  Bridge: virbr0                                               │  │
 │  │  • Type: NAT mode                                             │  │
 │  │  • Subnet: 192.168.122.0/24                                   │  │
-│  │  • DHCP Range: 192.168.122.2 - 192.168.122.254               │  │
+│  │  • DHCP Range: 192.168.122.2 - 192.168.122.254                │  │
 │  │  • Gateway: 192.168.122.1 (host bridge)                       │  │
 │  └───────────────────────────────────────────────────────────────┘  │
 │                                                                     │
@@ -672,7 +669,7 @@ USER REQUEST (POST /api/tasks)
 │  │  DNS Resolution:                                              │  │
 │  │  • Provided by libvirt dnsmasq                                │  │
 │  │  • VM hostname → IP mapping                                   │  │
-│  │  • Forwarding to host DNS for external resolution            │  │
+│  │  • Forwarding to host DNS for external resolution             │  │
 │  └───────────────────────────────────────────────────────────────┘  │
 └──────────────┬───────────────────────────────┬──────────────────────┘
                │                               │
@@ -699,8 +696,8 @@ USER REQUEST (POST /api/tasks)
 │  │  • otel-collector → 172.18.0.9                                │  │
 │  │  • prometheus → 172.18.0.10                                   │  │
 │  │  • tempo, loki, grafana → (other IPs)                         │  │
-│  │                                                                │  │
-│  │  Resolution:                                                   │  │
+│  │                                                               │  │
+│  │  Resolution:                                                  │  │
 │  │  • Containers use DNS name (e.g., backend)                    │  │
 │  │  • Docker DNS resolves to container IP                        │  │
 │  │  • TTL: 30 seconds (for dynamic updates)                      │  │
@@ -1033,13 +1030,13 @@ This is **the power of unified observability**: Jump seamlessly between metrics 
 │  │  7. Sync Files to VM                                       │  │
 │  │     rsync -az --delete \                                   │  │
 │  │       ./  deploy@192.168.122.250:/home/deploy/lab/app/     │  │
-│  │                                                             │  │
-│  │     Files copied:                                           │  │
-│  │     • docker-compose.yml                                    │  │
-│  │     • backend/ (app.py, Dockerfile, requirements.txt)       │  │
-│  │     • frontend/ (index.html, default.conf)                  │  │
-│  │     • otel-collector/ (otel-collector-config.yml, etc.)     │  │
-│  │     • grafana/ (provisioning/, dashboards/)                 │  │
+│  │                                                            │  │
+│  │     Files copied:                                          │  │
+│  │     • docker-compose.yml                                   │  │
+│  │     • backend/ (app.py, Dockerfile, requirements.txt)      │  │
+│  │     • frontend/ (index.html, default.conf)                 │  │
+│  │     • otel-collector/ (otel-collector-config.yml, etc.)    │  │
+│  │     • grafana/ (provisioning/, dashboards/)                │  │
 │  └────────────────────────────────────────────────────────────┘  │
 │                                                                  │
 │  ┌────────────────────────────────────────────────────────────┐  │
@@ -1047,32 +1044,32 @@ This is **the power of unified observability**: Jump seamlessly between metrics 
 │  │     ssh deploy@192.168.122.250 "                           │  │
 │  │       cd /home/deploy/lab/app &&                           │  │
 │  │       PROJECT=lab LAB_HOST=<vm-ip> ./start-lab.sh          │  │
-│  │     "                                                       │  │
-│  │                                                             │  │
-│  │     Steps executed on VM:                                   │  │
-│  │     • Build backend image (DOCKER_BUILDKIT=1)               │  │
-│  │     • Pull Nginx, Grafana, Prometheus, etc. images          │  │
-│  │     • Create otel-network bridge network                    │  │
-│  │     • Start backend (waits for healthcheck)                 │  │
-│  │     • Start frontend (depends on backend healthy)           │  │
-│  │     • Start observability stack (collector, Tempo, etc.)    │  │
+│  │     "                                                      │  │
+│  │                                                            │  │
+│  │     Steps executed on VM:                                  │  │
+│  │     • Build backend image (DOCKER_BUILDKIT=1)              │  │
+│  │     • Pull Nginx, Grafana, Prometheus, etc. images         │  │
+│  │     • Create otel-network bridge network                   │  │
+│  │     • Start backend (waits for healthcheck)                │  │
+│  │     • Start frontend (depends on backend healthy)          │  │
+│  │     • Start observability stack (collector, Tempo, etc.)   │  │
 │  └────────────────────────────────────────────────────────────┘  │
 │                                                                  │
 │  ┌────────────────────────────────────────────────────────────┐  │
 │  │  9. Post-Deployment State                                  │  │
-│  │     Containers running:                                     │  │
-│  │     • backend (flask-backend) - Up (healthy)                │  │
-│  │     • frontend (nginx:alpine) - Up                          │  │
-│  │     • otel-collector - Up                                   │  │
-│  │     • tempo - Up                                            │  │
-│  │     • prometheus - Up                                       │  │
-│  │     • loki - Up                                             │  │
-│  │     • grafana - Up                                          │  │
-│  │                                                             │  │
-│  │     Exposed services:                                       │  │
-│  │     • http://192.168.122.250:8080 - Application UI          │  │
-│  │     • http://192.168.122.250:3000 - Grafana                 │  │
-│  │     • http://192.168.122.250:9090 - Prometheus              │  │
+│  │     Containers running:                                    │  │
+│  │     • backend (flask-backend) - Up (healthy)               │  │
+│  │     • frontend (nginx:alpine) - Up                         │  │
+│  │     • otel-collector - Up                                  │  │
+│  │     • tempo - Up                                           │  │
+│  │     • prometheus - Up                                      │  │
+│  │     • loki - Up                                            │  │
+│  │     • grafana - Up                                         │  │
+│  │                                                            │  │
+│  │     Exposed services:                                      │  │
+│  │     • http://192.168.122.250:8080 - Application UI         │  │
+│  │     • http://192.168.122.250:3000 - Grafana                │  │
+│  │     • http://192.168.122.250:9090 - Prometheus             │  │
 │  └────────────────────────────────────────────────────────────┘  │
 └──────────────────────────────────────────────────────────────────┘
                               │
@@ -1081,11 +1078,11 @@ This is **the power of unified observability**: Jump seamlessly between metrics 
 │  JENKINS CONTROLLER (Smoke Tests)                                │
 │  ┌────────────────────────────────────────────────────────────┐  │
 │  │  10. Health Checks (from Jenkins agent)                    │  │
-│  │      curl http://192.168.122.250:8080           # Frontend  │  │
-│  │      curl http://192.168.122.250:3000/login     # Grafana   │  │
-│  │      curl http://192.168.122.250:9090/-/ready   # Prometheus│  │
-│  │                                                             │  │
-│  │      All return HTTP 200 → PIPELINE SUCCESS ✓               │  │
+│  │      curl http://192.168.122.250:8080         # Frontend   │  │
+│  │      curl http://192.168.122.250:3000/login   # Grafana    │  │
+│  │      curl http://192.168.122.250:9090/-/ready # Prometheus │  │
+│  │                                                            │  │
+│  │      All return HTTP 200 → PIPELINE SUCCESS ✓              │  │
 │  └────────────────────────────────────────────────────────────┘  │
 └──────────────────────────────────────────────────────────────────┘
 ```
@@ -1106,7 +1103,7 @@ After successful deployment, the following verification is performed (see `docs/
 
 ## Future Roadmap
 
-### Phase 2: Advanced CI/CD & Security (Planned)
+### Phase 2: Policy as Code & Secure Delivery (Planned)
 
 **Pre-Commit Hooks (Host IDE + GitHub):**
 - **Host Environment:**
@@ -1180,7 +1177,7 @@ deny[msg] {
 │  │     snyk test --severity-threshold=high              │  │
 │  │     • Scans Python packages (requirements.txt)       │  │
 │  │     • Scans npm packages (package.json)              │  │
-│  │     • Fails build on high/critical vulnerabilities  │  │
+│  │     • Fails build on high/critical vulnerabilities   │  │
 │  └──────────────────────────────────────────────────────┘  │
 │                                                            │
 │  ┌──────────────────────────────────────────────────────┐  │
@@ -1222,6 +1219,10 @@ deny[msg] {
 └────────────────────────────────────────────────────────────┘
 ```
 
+**Secrets & DAST Enhancements:**
+- Jenkins retrieves short-lived Vault tokens per run, eliminating static credentials
+- OWASP ZAP baseline scans execute post-deploy against staging endpoints with reports attached to Jira tickets
+
 **Jira Integration:**
 - Pipeline stage failures auto-create tickets
 - Ticket contents:
@@ -1233,12 +1234,12 @@ deny[msg] {
 
 ---
 
-### Phase 3: Kubernetes Migration (Planned)
+### Phase 3: Kubernetes Refactoring & Platform Automation (Planned)
 
 **Rationale:**
 - Current: Docker Compose (single-host orchestration)
-- Goal: Kubernetes (multi-node, production-grade orchestration)
-- Benefit: Hands-on K8s experience, service mesh readiness, cloud-portable architecture
+- Goal: Kubernetes (multi-node, production-grade orchestration) with GitOps workflows
+- Benefit: Hands-on K8s experience, service mesh readiness, Ansible-powered automation, cloud portability
 
 **Migration Path:**
 1. **Convert docker-compose.yml to Kubernetes manifests:**
@@ -1272,45 +1273,49 @@ deny[msg] {
    - Add Ingress resource (Nginx Ingress Controller)
    - Service mesh (Istio/Linkerd) for automatic mTLS and observability
 
+5. **Automation:**
+   - Use Ansible playbooks to provision kubeadm clusters and bootstrap add-ons
+   - Introduce ArgoCD for GitOps-driven deployments and progressive rollouts
+
 **Kubernetes Architecture Snapshot:**
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│  INGRESS (Nginx Ingress Controller)                        │
-│  • http://observability.example.com → frontend:80          │
-│  • http://observability.example.com/grafana → grafana:3000 │
+│  INGRESS (Nginx Ingress Controller)                         │
+│  • http://observability.example.com → frontend:80           │
+│  • http://observability.example.com/grafana → grafana:3000  │
 └───────────────────────┬─────────────────────────────────────┘
                         │
                         ▼
 ┌─────────────────────────────────────────────────────────────┐
-│  FRONTEND DEPLOYMENT (3 replicas)                          │
-│  • Service: frontend (ClusterIP)                           │
-│  • Pods: frontend-{hash}-{random}                          │
+│  FRONTEND DEPLOYMENT (3 replicas)                           │
+│  • Service: frontend (ClusterIP)                            │
+│  • Pods: frontend-{hash}-{random}                           │
 └───────────────────────┬─────────────────────────────────────┘
                         │
                         ▼
 ┌─────────────────────────────────────────────────────────────┐
-│  BACKEND DEPLOYMENT (5 replicas with HPA)                  │
-│  • Service: backend (ClusterIP)                            │
-│  • Horizontal Pod Autoscaler: min 2, max 10                │
-│  • Liveness: /metrics every 10s                            │
-│  • Readiness: /health every 5s                             │
+│  BACKEND DEPLOYMENT (5 replicas with HPA)                   │
+│  • Service: backend (ClusterIP)                             │
+│  • Horizontal Pod Autoscaler: min 2, max 10                 │
+│  • Liveness: /metrics every 10s                             │
+│  • Readiness: /health every 5s                              │
 └───────────────────────┬─────────────────────────────────────┘
                         │
                         ▼
 ┌─────────────────────────────────────────────────────────────┐
-│  POSTGRESQL STATEFULSET (3 replicas with replication)      │
-│  • Service: postgres-headless (for StatefulSet DNS)        │
+│  POSTGRESQL STATEFULSET (3 replicas with replication)       │
+│  • Service: postgres-headless (for StatefulSet DNS)         │
 │  • PVCs: postgres-data-0, postgres-data-1, postgres-data-2  │
-│  • Replaces SQLite for production workloads                │
+│  • Replaces SQLite for production workloads                 │
 └─────────────────────────────────────────────────────────────┘
 
 ┌─────────────────────────────────────────────────────────────┐
 │  OBSERVABILITY STACK (StatefulSets)                         │
-│  • otel-collector: Deployment (3 replicas, stateless)      │
-│  • prometheus: StatefulSet (PVC for TSDB)                  │
-│  • tempo: StatefulSet (PVC for traces)                     │
-│  • loki: StatefulSet (PVC for logs)                        │
-│  • grafana: Deployment (ConfigMaps for dashboards)         │
+│  • otel-collector: Deployment (3 replicas, stateless)       │
+│  • prometheus: StatefulSet (PVC for TSDB)                   │
+│  • tempo: StatefulSet (PVC for traces)                      │
+│  • loki: StatefulSet (PVC for logs)                         │
+│  • grafana: Deployment (ConfigMaps for dashboards)          │
 └─────────────────────────────────────────────────────────────┘
 ```
 
@@ -1324,41 +1329,31 @@ deny[msg] {
 
 ---
 
-### Phase 4: Hybrid Cloud Migration (Planned)
+### Phase 4: Cloud-Native AWS Migration (Planned)
 
-**Goal:** Implement the **5 R's of Cloud Migration** using this on-prem stack as the source:
+**Objective:** Iterate on an AWS landing zone while keeping the on-prem lab active for experimentation.
 
-**1. Rehost (Lift and Shift):**
-- Deploy Kubernetes cluster to AWS EKS / GCP GKE / Azure AKS
-- Use Helm charts from Phase 3 (minimal changes)
-- Replace PVCs with cloud storage (EBS, Persistent Disks, Azure Disks)
-- Update Ingress to use cloud load balancers
+**Landing Zone & Connectivity:**
+- Design AWS VPC with segmented public/private subnets, routed via Transit Gateway
+- Establish Site-to-Site VPN (and later Direct Connect) between the lab and AWS
+- Implement IAM roles, SCPs, and GuardDuty for baseline governance
 
-**2. Replatform (Lift, Tinker, and Shift):**
-- Replace self-managed Prometheus → AWS Managed Prometheus (AMP) / GCP Managed Prometheus
-- Replace Grafana → AWS Managed Grafana / GCP Managed Grafana
-- Replace PostgreSQL → AWS RDS / Cloud SQL / Azure Database
-- Keep application code identical, leverage managed services
+**Container Platforms:**
+- Lift Kubernetes workloads to Amazon EKS using managed node groups and Fargate profiles
+- Evaluate Amazon ECS/Fargate for stateless services to compare operational overhead
+- Reuse Helm charts from Phase 3 with minimal adjustments for cloud storage classes
 
-**3. Refactor (Re-architect):**
-- Decompose monolithic Flask app into microservices:
-  - `task-service` (CRUD operations)
-  - `auth-service` (authentication/authorization)
-  - `notification-service` (async task notifications)
-- Use cloud-native messaging (SQS, Pub/Sub, Service Bus)
-- Replace OTLP → native cloud SDKs (X-Ray, Cloud Trace, Application Insights)
+**Managed Observability & Secrets:**
+- Replace self-hosted Prometheus/Grafana/Tempo/Loki with AWS Managed Prometheus, Managed Grafana, X-Ray, and CloudWatch Logs
+- Migrate secrets and configuration into AWS Secrets Manager and Parameter Store
+- Stream Jenkins pipeline telemetry into AWS services for centralized auditing
 
-**4. Repurchase (Move to SaaS):**
-- Replace self-hosted observability → Datadog / New Relic / Honeycomb
-- Replace Jenkins → GitHub Actions / GitLab CI / CircleCI
-- Replace Vault → AWS Secrets Manager / GCP Secret Manager / Azure Key Vault
+**Modernization Loop:**
+- Decompose the monolith where it adds value (task-service, auth-service, notification-service)
+- Introduce EventBridge, SQS, and SNS to decouple asynchronous flows
+- Track cost/performance deltas with FinOps dashboards comparing on-prem vs. AWS
 
-**5. Relocate (Hypervisor-Level Lift and Shift):**
-- Use AWS Application Migration Service (MGN) or Azure Migrate
-- Migrate entire VMs (including KVM hypervisor layer if needed)
-- No application changes, just infrastructure relocation
-
-**Hybrid Cloud Architecture:**
+**Hybrid Architecture:**
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │  ON-PREMISES (KVM/Libvirt)                                  │
@@ -1367,14 +1362,15 @@ deny[msg] {
 │  • Self-hosted runners (Jenkins agents)                     │
 └──────────────────────┬──────────────────────────────────────┘
                        │
-                       │ VPN / Direct Connect / ExpressRoute
+                       │ Site-to-Site VPN / Direct Connect
                        │
 ┌──────────────────────┴──────────────────────────────────────┐
-│  CLOUD (AWS/GCP/Azure)                                      │
-│  • Production Kubernetes cluster (EKS/GKE/AKS)              │
-│  • Managed services (RDS, Managed Prometheus, etc.)         │
-│  • Object storage (S3, GCS, Blob Storage)                   │
-│  • CI/CD runners (cloud-native)                             │
+│  AWS CLOUD                                                  │
+│  • Amazon EKS (production workloads)                        │
+│  • Amazon ECS/Fargate (select services)                     │
+│  • AWS Managed Prometheus & Managed Grafana                 │
+│  • AWS Secrets Manager & Parameter Store                    │
+│  • Jenkins agents / GitHub Actions runners (cloud-native)   │
 └─────────────────────────────────────────────────────────────┘
                        │
                        │ Unified Observability
@@ -1386,31 +1382,6 @@ deny[msg] {
 │  • Unified dashboards across environments                   │
 └─────────────────────────────────────────────────────────────┘
 ```
-
----
-
-### Phase 5: Advanced Topics (Planned)
-
-**Ansible Automation:**
-- Replace manual VM provisioning with Ansible playbooks
-- Playbooks:
-  - `provision-vm.yml` (create VM via libvirt)
-  - `deploy-k8s.yml` (install Kubernetes on VMs)
-  - `deploy-observability.yml` (deploy stack via Helm)
-
-**Complex Networking:**
-- Implement BGP routing between on-prem and cloud
-- Multi-region deployments with latency-based routing
-- Private service mesh across environments
-
-**Bare Metal Self-Hosted Infrastructure:**
-- Migrate from KVM VMs → bare metal Kubernetes
-- Use tools like Talos Linux (immutable Kubernetes OS)
-- Build home lab with mini PCs or rack servers
-- Simulate data center operations (power, cooling, IPMI)
-
----
-
 ## Conclusion
 
 ### What This Architecture Represents
@@ -1448,10 +1419,9 @@ This observability lab is **more than a monitoring stack**—it's a **foundation
 
 This proof of concept is **milestone 1** in a multi-year learning journey:
 
-- **Phase 2:** Advanced security, policy as code, artifact management
-- **Phase 3:** Kubernetes migration, service mesh, multi-node orchestration
-- **Phase 4:** Hybrid cloud experimentation with 5 R's migration strategies
-- **Phase 5:** Bare metal self-hosting, complex networking, Ansible automation
+- **Phase 2:** Policy as code, advanced SAST/DAST, artifact management, Vault revival
+- **Phase 3:** Kubernetes refactoring with Istio/Envoy, ArgoCD GitOps, Helm & Ansible automation
+- **Phase 4:** Cloud-native AWS migration with iterative ECS/EKS deployments and managed telemetry
 
 Each phase builds on the previous, reinforcing skills while adding new capabilities. The **on-prem domain** provides the solid foundation; the **cloud-native domain** provides the future direction.
 

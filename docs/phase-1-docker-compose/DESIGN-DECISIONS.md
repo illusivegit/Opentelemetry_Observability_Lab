@@ -92,7 +92,7 @@ Need a stable, reproducible infrastructure platform for running the observabilit
 - **Performance:** Near-native speed with hardware virtualization
 - **Cost:** Zero recurring costs (one-time hardware investment)
 - **Learning Value:** Understanding libvirt XML, virsh commands, storage pools translates directly to production skills
-- **Automation:** Scriptable for Ansible playbooks (future Phase 5)
+- **Automation:** Scriptable for Ansible playbooks (future Phase 3)
 
 **TRADE-OFFS ACCEPTED:**
 - Higher initial learning curve (understanding libvirt, virt-manager)
@@ -100,7 +100,7 @@ Need a stable, reproducible infrastructure platform for running the observabilit
 - Less portable than cloud VMs (tied to physical hardware)
 
 **FUTURE RECONSIDERATION:**
-- If migrating to hybrid cloud (Phase 4), may spin up cloud VMs alongside on-prem
+- If migrating to cloud-native AWS (Phase 4), may spin up cloud VMs alongside on-prem
 - If building multi-region lab, cloud VMs become necessary
 
 ---
@@ -760,7 +760,7 @@ stage('Deploy to Remote Context') {
   - Overkill for single VM deployment
   - Learning curve for Ansible syntax
 
-**CHOSEN:** Option A - SSH + rsync (with future migration to Ansible in Phase 5)
+**CHOSEN:** Option A - SSH + rsync (with future migration to Ansible in Phase 3)
 
 **RATIONALE:**
 - **Works Today:** SSH is already configured, rsync is available on Jenkins agent
@@ -803,7 +803,7 @@ stage('Deploy via context') {
 
 **FUTURE RECONSIDERATION:**
 
-**Phase 5: Ansible Migration**
+**Phase 3: Ansible Migration**
 - Create `playbooks/deploy-observability.yml`
 - Use `ansible-playbook` in Jenkins pipeline
 - Benefits:
@@ -1194,7 +1194,7 @@ MaxAuthTries 3       # Limit authentication attempts
 ```
 
 **TRADE-OFFS ACCEPTED:**
-- Must securely store private key (Jenkins credentials plugin, Vault)
+- Must securely store private key (Jenkins credentials plugin today, future Vault)
 - Key rotation requires manual process (copy new key, remove old)
 - Lost private key = must use VM console to add new key (or rebuild VM)
 
@@ -1239,8 +1239,8 @@ Application may need secrets (database passwords, API keys) in future iterations
 
 **OPTIONS CONSIDERED:**
 
-**Option A: HashiCorp Vault (Chosen for Jenkins Infra, Future for App)**
-- Currently: Used in Jenkins environment for SSH keys
+**Option A: HashiCorp Vault (previous iteration, planned return)**
+- Previously: Backed Jenkins credential experiments
 - Future: Backend can fetch DB credentials from Vault API
 - ✅ Pros:
   - Centralized secrets management
@@ -1292,18 +1292,18 @@ DB_PASSWORD = "hardcoded_secret"
   - Exposed in logs, stack traces
   - No excuse to do this
 
-**CHOSEN:** Option A - Vault (with fallback to environment variables for non-sensitive config)
+**CHOSEN:** Option A - Vault (with fallback to environment variables for non-sensitive config) - deferred until Vault is reinstated
 
 **RATIONALE:**
 - **Future-Proof:** When migrating to PostgreSQL (Phase 3), Vault is ready
 - **Learning Value:** Vault integration is valuable DevSecOps skill
-- **Jenkins Already Has It:** Reuse existing Vault server in Jenkins network
+- **Jenkins Already Prototyped It:** Reuse the Vault setup when reinstated
 - **Non-Secrets via Env Vars:** Non-sensitive config (e.g., `FLASK_ENV=production`) can use env vars
 
 **CURRENT STATE:**
 - SQLite has no password (file-based database)
 - No secrets currently needed
-- Vault server running in Jenkins network (not yet integrated with app)
+- Vault stack paused; secrets handled manually for now
 
 **FUTURE IMPLEMENTATION (Phase 2):**
 ```python
@@ -1332,7 +1332,7 @@ DB_PASSWORD = secret['data']['data']['password']
 | **SQLite vs. PostgreSQL** | Production database features | Simplicity, zero config | ✅ Yes (for PoC), will migrate in Phase 3 |
 | **Prometheus Client (No OTel Metrics)** | Centralized metric processing | Single source, no duplication | ✅ Yes, traces are the real OTel value |
 | **Nginx Proxy vs. CORS** | Direct client→backend connection | Same-origin, production pattern | ✅ Yes, industry standard |
-| **SSH Deployment vs. Ansible** | Declarative infrastructure as code | Works today, no learning curve | ✅ Yes, Ansible is Phase 5 goal |
+| **SSH Deployment vs. Ansible** | Declarative infrastructure as code | Works today, no learning curve | ✅ Yes, Ansible lands in Phase 3 |
 | **KVM vs. Cloud VMs** | Cloud portability, pay-as-you-go | Zero recurring costs, on-prem simulation | ✅ Yes, aligns with "on-prem domain" vision |
 | **Dynamic DNS in Nginx** | Slight performance overhead | Resilience to backend restarts | ✅ Yes, prevents 502 errors |
 | **Key-Only SSH (vs. Password)** | Convenience of password login | Eliminates brute-force attacks, enables automation | ✅ Yes, production-grade security |
@@ -1358,7 +1358,7 @@ DB_PASSWORD = secret['data']['data']['password']
 - Architecture diagrams + decision records = complete picture
 
 **4. Security is Easier to Add Early**
-- Vault integration planned from start (even if not used yet)
+- Vault integration planned from start (even if paused in this phase)
 - SSH key-based authentication (never passwords)
 - Pre-commit hooks (Phase 2) catch secrets before they hit Git
 

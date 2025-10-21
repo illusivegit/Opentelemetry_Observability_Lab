@@ -3,7 +3,7 @@
 ## 🚀 Current Phase: Phase 1 - Docker Compose Stack
 **Status:** ✅ Complete
 **Last Updated:** 2025-10-20
-**Next Phase:** Phase 2 - Security & Policy 
+**Next Phase:** Phase 2 - Policy as Code & Secure Delivery 
 
 ---
 
@@ -50,12 +50,12 @@
 
 ---
 
-### Phase 2: Security & Policy 📋 Planned
+### Phase 2: Policy as Code & Secure Delivery 📋 Planned
 
-**Scope:** OPA/Rego, SonarQube, Snyk, Trivy, JFrog Artifactory, server hardening
+**Scope:** OPA/Rego guardrails, SonarQube/Snyk/Trivy, Vault reintroduction, JFrog Artifactory, incremental hardening
 
-**Planned Start:** Q1 2026
-**Estimated Duration:** 3 months
+**Planned Start:** After Phase 1 stabilization
+**Estimated Duration:** Iterative milestones
 
 **Documentation Plan:**
 - [x] Templates ready in `/docs/templates/`
@@ -65,47 +65,43 @@
 - [ ] Troubleshooting playbooks (to be added as issues found)
 
 **Key Additions:**
-- Policy as Code: OPA/Rego enforcement in Jenkins pipeline
-- SAST: SonarQube integration
-- Dependency Scanning: Snyk for vulnerabilities
+- Policy as Code: Rego policies enforced via Conftest in Jenkins
+- SAST/DAST: SonarQube coverage, Snyk dependency scanning, OWASP ZAP automation
 - Container Scanning: Trivy for image analysis
-- Artifact Management: JFrog Artifactory
-- Server Hardening: fail2ban, UFW firewall, 2FA
+- Artifact Management: JFrog Artifactory with provenance attestation
+- Secrets Management: Vault returns for short-lived credentials
+- Server Hardening: fail2ban, UFW firewall, auditd, MFA for privileged access
 
 ---
 
-### Phase 3: Kubernetes Migration 💭 Concept
+### Phase 3: Kubernetes Refactoring & Platform Automation 💭 Concept
 
-**Scope:** K8s cluster, Helm charts, StatefulSets, PostgreSQL, service mesh
+**Scope:** Kubernetes cluster, Helm charts, PostgreSQL, Istio/Envoy, ArgoCD, Ansible automation
 
-**Planned Start:** Q2 2026
-**Estimated Duration:** 6 months
+**Planned Start:** After Phase 2 hardening
+**Estimated Duration:** Multi-phase rollout
 
 **Key Changes:**
-- Docker Compose → Kubernetes manifests
-- SQLite → PostgreSQL StatefulSet
-- On-prem K8s cluster (kubeadm)
-- Helm charts for observability stack
-- Possible Istio/Linkerd service mesh
+- Docker Compose → Kubernetes manifests backed by Helm
+- SQLite → PostgreSQL StatefulSet with PersistentVolumes
+- On-prem K8s cluster (kubeadm + Ansible automation)
+- Istio service mesh with Envoy sidecars for mTLS and traffic shaping
+- GitOps: ArgoCD managing Git-driven deployments
 
 ---
 
-### Phase 4: Hybrid Cloud 🌥️ Future
+### Phase 4: Cloud-Native AWS Migration 🌥️ Future
 
-**Scope:** AWS EKS / GCP GKE, managed services, multi-region
+**Scope:** AWS landing zone, ECS/EKS iteration, managed observability, hybrid connectivity
 
-**Timeline:** 2026 H2
+**Timing:** When AWS landing zone readiness matures
 
----
-
-### Phase 5: Advanced Topics ⭐ Long-term
-
-**Scope:** Ansible, bare metal, complex networking
-
-**Timeline:** 2027+
-
----
-
+**Key Changes:**
+- Establish Site-to-Site VPN or Direct Connect between lab and AWS
+- Migrate Kubernetes workloads to Amazon EKS; evaluate ECS/Fargate for stateless services
+- Replace self-managed observability stack with AWS managed alternatives
+- Move secrets/configuration to AWS Secrets Manager and Parameter Store
+- Build migration playbooks comparing cost/performance across environments
 ## 🔧 Cross-Cutting Documentation
 
 **Applies to all phases**
