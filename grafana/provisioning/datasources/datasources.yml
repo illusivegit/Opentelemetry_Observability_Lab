@@ -9,7 +9,6 @@ datasources:
     isDefault: true
     editable: true
     jsonData:
-      httpMethod: POST
       manageAlerts: true
       prometheusType: Prometheus
       prometheusVersion: 2.48.0
