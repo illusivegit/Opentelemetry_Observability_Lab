@@ -127,30 +127,55 @@ This is **milestone 1** of the **On-Prem Domain**—a comprehensive learning pat
 
 ---
 
-### Application Frontend
-![Task Manager Frontend](pics/frontend1_frontpage.png)
-*Simple, responsive task management interface with OpenTelemetry browser instrumentation*
+## 🎥 Visual Walkthrough
 
-### Grafana Observability Stack
+### Application & Dashboards
 
-![Grafana Homepage](pics/grafana1_homepage.png)
-*Main Grafana dashboard showing available data sources and dashboards*
+<div align="center">
 
-#### Available Dashboards
-![Grafana Dashboards](pics/grafana2_homepage_dashboards.png)
+**Frontend Application & SLI/SLO Dashboard**
 
-#### End-to-End Tracing Dashboard
-![Tracing Dashboard](pics/grafana2_homepage_dashboards_end-to-end_tracing_dashboard.png)
+*Real-time metrics tracking service availability, P95 latency, error rates, and request volume*
 
-![Detailed Trace View](pics/grafana2_homepage_dashboards_end-to-end_tracing_dashboard2.png)
-![Detailed Trace View](pics/grafana2_homepage_dashboards_end-to-end_tracing_dashboard3.png)
-*Correlates traces, logs, and services for faster debugging and performance insight*
+![Frontend Application and SLI/SLO Dashboard](pics_&_gifs/output.gif)
 
-#### SLI/SLO Dashboard
-![SLI/SLO Overview](pics/grafana3_homepage_dashboards_SLI_SLO_Dashboard_Task-Manager.png)
+---
 
-![SLI/SLO Details](pics/grafana3_homepage_dashboards_SLI_SLO_Dashboard_Task-Manager2.png)
-*Real-time monitoring of service reliability, performance, and error rates*
+**End-to-End Distributed Tracing Dashboard**
+
+*Visualizing request flows across browser → backend → database with parent-child span relationships*
+
+![End-to-End Tracing Dashboard](pics_&_gifs/output2.gif)
+
+</div>
+
+### Observability Stack in Action
+
+<div align="center">
+
+**Prometheus Metrics Exploration**
+
+*Querying service metrics with PromQL - request rates, error percentiles, and latency histograms*
+
+![Prometheus Query Interface](pics_&_gifs/output3.gif)
+
+---
+
+**Tempo Trace Analysis**
+
+*Deep-dive into distributed traces using TraceQL - finding slow requests and error patterns*
+
+![Tempo Trace Exploration](pics_&_gifs/output4.gif)
+
+---
+
+**Loki Log Aggregation**
+
+*Searching structured logs with LogQL - trace correlation and log-to-trace navigation*
+
+![Loki Log Query Interface](pics_&_gifs/output5.gif)
+
+</div>
 
 ---
 
