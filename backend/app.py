@@ -10,7 +10,6 @@ from sqlalchemy import event
 from pythonjsonlogger import jsonlogger
 from prometheus_client import generate_latest, CONTENT_TYPE_LATEST, Counter, Histogram
 
-# OpenTelemetry Imports
 from opentelemetry import trace, metrics
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import BatchSpanProcessor
@@ -26,7 +25,6 @@ from opentelemetry.instrumentation.logging import LoggingInstrumentor
 from opentelemetry.trace import Status, StatusCode
 from opentelemetry._logs import set_logger_provider
 
-# Configure structured logging with JSON formatter
 logHandler = logging.StreamHandler()
 formatter = jsonlogger.JsonFormatter(
     '%(asctime)s %(name)s %(levelname)s %(message)s %(trace_id)s %(span_id)s'
@@ -36,14 +34,12 @@ logger = logging.getLogger()
 logger.addHandler(logHandler)
 logger.setLevel(logging.INFO)
 
-# Initialize OpenTelemetry
 resource = Resource.create({
     "service.name": os.getenv("OTEL_SERVICE_NAME", "flask-backend"),
     "service.version": "1.0.0",
     "deployment.environment": "lab"
 })
 
-# Setup Tracing
 tracer_provider = TracerProvider(resource=resource)
 otlp_trace_exporter = OTLPSpanExporter(
     endpoint=f"{os.getenv('OTEL_EXPORTER_OTLP_ENDPOINT', 'http://otel-collector:4318')}/v1/traces"
@@ -53,13 +49,10 @@ tracer_provider.add_span_processor(span_processor)
 trace.set_tracer_provider(tracer_provider)
 tracer = trace.get_tracer(__name__)
 
-# Setup Metrics - OTel meter for internal instrumentation only (span attributes)
-# NOTE: No OTLP export - we use prometheus_client for all Prometheus metrics
 meter_provider = MeterProvider(resource=resource)
 metrics.set_meter_provider(meter_provider)
 meter = metrics.get_meter(__name__)
 
-# Setup Logs - Export to OTLP
 logger_provider = LoggerProvider(resource=resource)
 set_logger_provider(logger_provider)
 
@@ -69,23 +62,15 @@ otlp_log_exporter = OTLPLogExporter(
 )
 logger_provider.add_log_record_processor(BatchLogRecordProcessor(otlp_log_exporter))
 
-# Bridge stdlib logging to OpenTelemetry logs SDK
 otel_log_handler = LoggingHandler(level=logging.INFO, logger_provider=logger_provider)
 logging.getLogger().addHandler(otel_log_handler)
 
-# NOTE: OTel metrics for Prometheus removed to eliminate duplication.
-# We now use ONLY prometheus_client metrics exposed at /metrics endpoint.
-# OTel still handles traces (Tempo) and logs (Loki) via OTLP collector.
-
-# Database query duration tracking (OTel-only, for span attributes)
 database_query_duration = meter.create_histogram(
     name="database_query_duration_seconds",
     description="Database query duration in seconds",
     unit="s"
 )
 
-# Prometheus Client Metrics (exported via /metrics endpoint for scraping)
-# These are the ONLY metrics sent to Prometheus (no duplication)
 prom_http_requests_total = Counter(
     'http_requests_total',
     'Total HTTP requests',
@@ -104,29 +89,23 @@ prom_http_errors_total = Counter(
     ['method', 'endpoint', 'status_code']
 )
 
-# Histogram for SQLite query latency (seconds)
-# Buckets chosen for typical SQLite operations (2ms to 2s range)
 prom_db_query_duration_seconds = Histogram(
     'db_query_duration_seconds',
     'SQLite query duration in seconds',
-    ['operation'],  # SELECT/INSERT/UPDATE/DELETE
+    ['operation'],
     buckets=(0.002, 0.005, 0.01, 0.02, 0.05, 0.1, 0.25, 0.5, 1, 2)
 )
 
-# Initialize Flask App
 app = Flask(__name__)
 CORS(app)
 
-# Database Configuration - Use absolute path for SQLite
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:////app/data/tasks.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
 
-# Instrument Flask and Logging (safe outside app context)
 FlaskInstrumentor().instrument_app(app)
 LoggingInstrumentor().instrument(set_logging_format=True)
 
-# Database Model
 class Task(db.Model):
     __tablename__ = 'tasks'
     id = db.Column(db.Integer, primary_key=True)
@@ -144,15 +123,10 @@ class Task(db.Model):
             'created_at': self.created_at.isoformat()
         }
 
-# SQLAlchemy event listener functions for Prometheus DB query duration tracking
-# NOTE: Defined as plain functions (not decorators) to avoid "Working outside of application context" error
-# These will be attached to db.engine inside the app context block below
 def _before_cursor_execute(conn, cursor, statement, parameters, context, executemany):
-    """Record query start time before execution"""
     context._query_start_time = perf_counter()
 
 def _after_cursor_execute(conn, cursor, statement, parameters, context, executemany):
-    """Record query duration after execution and classify operation type"""
     try:
         started = context._query_start_time
     except AttributeError:
@@ -160,7 +134,6 @@ def _after_cursor_execute(conn, cursor, statement, parameters, context, executem
 
     elapsed = perf_counter() - started
 
-    # Classify operation type from SQL statement
     s = statement.lstrip().upper()
     op = "SELECT"
     if s.startswith("INSERT"):
@@ -170,24 +143,18 @@ def _after_cursor_execute(conn, cursor, statement, parameters, context, executem
     elif s.startswith("DELETE"):
         op = "DELETE"
 
-    # Record to Prometheus histogram
     prom_db_query_duration_seconds.labels(operation=op).observe(elapsed)
 
-# Create tables and instrument SQLAlchemy within app context
 with app.app_context():
     os.makedirs('/app/data', exist_ok=True)
-    # Instrument SQLAlchemy inside app context where db.engine is accessible
     SQLAlchemyInstrumentor().instrument(engine=db.engine)
     db.create_all()
     logger.info("Database initialized")
 
-    # Attach SQLAlchemy event listeners for Prometheus DB metrics
-    # Must be done inside app context to avoid "Working outside of application context" error
     event.listen(db.engine, "before_cursor_execute", _before_cursor_execute)
     event.listen(db.engine, "after_cursor_execute", _after_cursor_execute)
     logger.info("SQLAlchemy event listeners registered for DB query duration tracking")
 
-# Middleware for request tracking
 @app.before_request
 def before_request():
     request.start_time = time.time()
@@ -227,7 +194,6 @@ def after_request(response):
                 status_code=status_code
             ).observe(prom_duration)
 
-            # Track errors for SLI dashboards
             if response.status_code >= 400:
                 prom_http_errors_total.labels(
                     method=method,
@@ -235,7 +201,6 @@ def after_request(response):
                     status_code=status_code
                 ).inc()
 
-        # Log response (with trace context for correlation)
         current_span = trace.get_current_span()
         logger.info(
             "Request completed",
@@ -251,17 +216,14 @@ def after_request(response):
 
     return response
 
-# API Routes
 @app.route('/health', methods=['GET'])
 def health_check():
-    """Health check endpoint"""
     with tracer.start_as_current_span("health_check") as span:
         span.set_attribute("health.status", "healthy")
         return jsonify({"status": "healthy", "timestamp": datetime.utcnow().isoformat()}), 200
 
 @app.route('/api/tasks', methods=['GET'])
 def get_tasks():
-    """Get all tasks"""
     with tracer.start_as_current_span("get_all_tasks") as span:
         try:
             query_start = time.time()
@@ -290,7 +252,6 @@ def get_tasks():
 
 @app.route('/api/tasks/<int:task_id>', methods=['GET'])
 def get_task(task_id):
-    """Get a specific task"""
     with tracer.start_as_current_span("get_task_by_id") as span:
         span.set_attribute("task.id", task_id)
 
@@ -321,7 +282,6 @@ def get_task(task_id):
 
 @app.route('/api/tasks', methods=['POST'])
 def create_task():
-    """Create a new task"""
     with tracer.start_as_current_span("create_task") as span:
         try:
             data = request.get_json()
@@ -364,7 +324,6 @@ def create_task():
 
 @app.route('/api/tasks/<int:task_id>', methods=['PUT'])
 def update_task(task_id):
-    """Update an existing task"""
     with tracer.start_as_current_span("update_task") as span:
         span.set_attribute("task.id", task_id)
 
@@ -408,7 +367,6 @@ def update_task(task_id):
 
 @app.route('/api/tasks/<int:task_id>', methods=['DELETE'])
 def delete_task(task_id):
-    """Delete a task"""
     with tracer.start_as_current_span("delete_task") as span:
         span.set_attribute("task.id", task_id)
 
@@ -443,7 +401,6 @@ def delete_task(task_id):
 
 @app.route('/api/simulate-error', methods=['GET'])
 def simulate_error():
-    """Endpoint to simulate errors for testing observability"""
     with tracer.start_as_current_span("simulate_error") as span:
         span.set_attribute("error.simulated", True)
         logger.error("Simulated error triggered for testing")
@@ -452,7 +409,6 @@ def simulate_error():
 
 @app.route('/api/simulate-slow', methods=['GET'])
 def simulate_slow():
-    """Endpoint to simulate slow responses for testing SLOs"""
     with tracer.start_as_current_span("simulate_slow_request") as span:
         delay = float(request.args.get('delay', 2.0))
         span.set_attribute("delay.seconds", delay)
@@ -462,19 +418,10 @@ def simulate_slow():
 
 @app.route('/metrics', methods=['GET'])
 def metrics():
-    """Prometheus metrics endpoint"""
-    # Generate and return Prometheus metrics in text format
     return Response(generate_latest(), mimetype=CONTENT_TYPE_LATEST)
 
 @app.route('/api/smoke/db', methods=['POST'])
 def db_smoke():
-    """
-    Generate DB traffic to warm Prometheus histograms.
-    Query params:
-      ops: total operations (default 200)
-      type: 'read' | 'write' | 'rw'  (default 'rw')
-    Writes are executed in a transaction and rolled back.
-    """
     from sqlalchemy.sql import text
 
     ops = int(request.args.get('ops', 200))
@@ -483,20 +430,16 @@ def db_smoke():
     read_ops = ops if mode == 'read' else (ops // 2 if mode == 'rw' else 0)
     write_ops = 0 if mode == 'read' else (ops if mode == 'write' else ops - read_ops)
 
-    # Simple SELECT target
     read_stmt = text('SELECT COUNT(*) FROM tasks')
 
-    # Simple INSERT/DELETE target (rolled back)
     insert_stmt = text('INSERT INTO tasks (title, description, completed, created_at) VALUES (:t, :d, :c, :dt)')
     delete_stmt = text('DELETE FROM tasks WHERE title LIKE :prefix')
 
     try:
-        # Do reads without transaction (no state change)
         with db.engine.connect() as conn:
             for _ in range(read_ops):
                 conn.execute(read_stmt)
 
-        # Do writes in a transaction and roll back
         with db.engine.connect() as conn:
             trans = conn.begin()
             try:
@@ -505,9 +448,7 @@ def db_smoke():
                         insert_stmt,
                         dict(t=f"smoke-{i}", d="smoke-test", c=False, dt=datetime.utcnow())
                     )
-                # Clean them up (observe DELETE path too)
                 conn.execute(delete_stmt, dict(prefix='smoke-%'))
-                # Roll back so DB remains unchanged
                 trans.rollback()
             except Exception:
                 trans.rollback()

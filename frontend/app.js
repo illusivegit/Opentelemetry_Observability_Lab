@@ -1,11 +1,7 @@
-// Application Logic with Manual Tracing
-// Same-origin API via Nginx proxy - no CORS issues, works across all environments
 const API_URL = '/api';
 
-// Global state
 let tasks = [];
 
-// Initialize app
 document.addEventListener('DOMContentLoaded', () => {
     console.log('Task Manager App initialized');
     setupDynamicLinks();
@@ -13,7 +9,6 @@ document.addEventListener('DOMContentLoaded', () => {
     setupEventListeners();
 });
 
-// Setup dynamic observability links based on current hostname
 function setupDynamicLinks() {
     const host = window.location.hostname;
 
@@ -34,12 +29,10 @@ function setupDynamicLinks() {
     console.log('[INFO] Dynamic observability links configured for host:', host);
 }
 
-// Setup event listeners
 function setupEventListeners() {
     const form = document.getElementById('task-form');
     form.addEventListener('submit', handleFormSubmit);
 
-    // DB smoke test button
     const btnDbSmoke = document.getElementById('btn-db-smoke');
     if (btnDbSmoke) {
         btnDbSmoke.addEventListener('click', async () => {
@@ -48,7 +41,6 @@ function setupEventListeners() {
             showToast('DB smoke test started (300 ops)...', 'warning');
 
             try {
-                // 300 ops mixed read/write; adjust as needed
                 const url = `${API_URL}/smoke/db?ops=300&type=rw`;
                 const response = await fetch(url, { method: 'POST' });
 
@@ -73,7 +65,6 @@ function setupEventListeners() {
     }
 }
 
-// Load all tasks
 async function loadTasks() {
     const startTime = performance.now();
 
@@ -116,7 +107,6 @@ async function loadTasks() {
     }
 }
 
-// Render tasks
 function renderTasks() {
     const container = document.getElementById('tasks-container');
 
@@ -131,7 +121,6 @@ function renderTasks() {
         .join('');
 }
 
-// Create task card HTML
 function createTaskCard(task) {
     const createdDate = new Date(task.created_at).toLocaleString();
 
@@ -162,7 +151,6 @@ function createTaskCard(task) {
     `;
 }
 
-// Handle form submission
 async function handleFormSubmit(e) {
     e.preventDefault();
     const startTime = performance.now();
@@ -208,7 +196,6 @@ async function handleFormSubmit(e) {
         renderTasks();
         updateStats();
 
-        // Clear form
         titleInput.value = '';
         descriptionInput.value = '';
 
@@ -221,7 +208,6 @@ async function handleFormSubmit(e) {
     }
 }
 
-// Toggle task completion
 async function toggleTask(taskId, currentStatus) {
     const startTime = performance.now();
     console.log('[TRACE] Toggling task:', { taskId, currentStatus });
@@ -263,7 +249,6 @@ async function toggleTask(taskId, currentStatus) {
     }
 }
 
-// Delete task
 async function deleteTask(taskId) {
     const startTime = performance.now();
     console.log('[TRACE] Deleting task:', taskId);
@@ -300,7 +285,6 @@ async function deleteTask(taskId) {
     }
 }
 
-// Update statistics
 function updateStats() {
     const total = tasks.length;
     const completed = tasks.filter(t => t.completed).length;
@@ -313,7 +297,6 @@ function updateStats() {
     console.log('[METRIC] Stats updated:', { total, completed, pending });
 }
 
-// Testing functions
 async function simulateError() {
     const startTime = performance.now();
     console.log('[TRACE] Simulating error');
@@ -396,7 +379,6 @@ async function createMultipleTasks() {
     }
 }
 
-// Toast notification
 function showToast(message, type = 'success') {
     const container = document.getElementById('toast-container');
     const toast = document.createElement('div');
@@ -411,14 +393,12 @@ function showToast(message, type = 'success') {
     }, 3000);
 }
 
-// Utility function to escape HTML
 function escapeHtml(text) {
     const div = document.createElement('div');
     div.textContent = text;
     return div.innerHTML;
 }
 
-// Make functions globally available
 window.toggleTask = toggleTask;
 window.deleteTask = deleteTask;
 window.simulateError = simulateError;

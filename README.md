@@ -457,18 +457,18 @@ histogram_quantile(0.95, sum(rate(db_query_duration_seconds_bucket[5m])) by (le,
 ┌─────────────────────────────────────────────────────────────────┐
 │                   PHYSICAL HOST (Debian 13)                     │
 │  ┌───────────────────────────────────────────────────────────┐  │
-│  │            KVM/QEMU/Libvirt Hypervisor                    │  │
+│  │        KVM/QEMU/Libvirt Hypervisor                        │  │
 │  │  ┌─────────────────────────────────────────────────────┐  │  │
-│  │  │  VM: 192.168.122.250 (Application VM)               │  │  │
+│  │  │  VM: 192.168.122.250 (Application)                  │  │  │
 │  │  │  • Docker Engine                                    │  │  │
 │  │  │  • Observability Stack (7 containers)               │  │  │
 │  │  └─────────────────────────────────────────────────────┘  │  │
-│  │  ┌─────────────────────────────────────────────────────┐  │  │
-│  │  │  VM: 192.168.122.x (Jenkins VM)                     │  │  │
-│  │  │  • Jenkins Controller                               │  │  │
-│  │  │  • Docker Agents                                    │  │  │
-│  │  │  • HashiCorp Vault (returning in later phases)      │  │  │
-│  │  └─────────────────────────────────────────────────────┘  │  │
+│  └───────────────────────────────────────────────────────────┘  │
+│  ┌───────────────────────────────────────────────────────────┐  │
+│  │   Jenkins & CI Services (bare metal on host)              │  │
+│  │   • Jenkins Controller                                    │  │
+│  │   • Docker Agents                                         │  │
+│  │   • HashiCorp Vault (returning in later phases)           │  │
 │  └───────────────────────────────────────────────────────────┘  │
 └─────────────────────────────────────────────────────────────────┘
 ```

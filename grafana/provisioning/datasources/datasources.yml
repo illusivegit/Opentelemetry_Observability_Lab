@@ -1,7 +1,6 @@
 apiVersion: 1
 
 datasources:
-  # Prometheus
   - name: Prometheus
     type: prometheus
     access: proxy
@@ -17,7 +16,6 @@ datasources:
       cacheLevel: 'High'
       timeInterval: 15s
 
-  # Tempo for Traces
   - name: Tempo
     type: tempo
     access: proxy
@@ -54,7 +52,6 @@ datasources:
       lokiSearch:
         datasourceUid: 'loki'
 
-  # Loki for Logs
   - name: Loki
     type: loki
     access: proxy

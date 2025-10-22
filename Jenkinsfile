@@ -7,7 +7,7 @@ pipeline {
     VM_IP      = '192.168.122.250'
     DOCKER_CTX = 'vm-lab'
     PROJECT    = 'lab'
-    VM_DIR     = '/home/deploy/lab/app'   // path on the VM
+    VM_DIR     = '/home/deploy/lab/app'   
   }
   
   stages {
@@ -36,7 +36,6 @@ pipeline {
       }
     }
 
-    // --- NEW: sync files that bind mounts need (simplest: mirror the whole repo)
     stage('Sync repo to VM') {
       steps {
         sshagent(credentials: ['vm-ssh']) {
@@ -76,14 +75,11 @@ pipeline {
             ssh ${VM_USER}@${VM_IP} "
               cd ${VM_DIR} && \
               PROJECT=${PROJECT} LAB_HOST=${VM_IP} ./start-lab.sh
-              # Explicitly override the default PROJECT=lab and LAB_HOST=localhost variables using Jenkins-provided values
-
             "
           '''
         }
       }
     }
-
 
     stage('Smoke tests') {
       steps {

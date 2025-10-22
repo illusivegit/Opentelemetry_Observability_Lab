@@ -30,3 +30,6 @@ Thumbs.db
 
 # Grafana
 grafana/data/
+
+# IMPORTANT: Private documentation archive (strategic IP protection)
+PRIVATE_DOCS_ARCHIVE/

@@ -17,7 +17,6 @@ processors:
     timeout: 10s
     send_batch_size: 1024
 
-  # Add resource attributes
   resource:
     attributes:
       - key: service.instance.id
@@ -27,19 +26,16 @@ processors:
         value: service.name, service.instance.id, deployment.environment
         action: insert
 
-  # Memory limiter to prevent OOM
   memory_limiter:
     check_interval: 1s
     limit_mib: 512
 
-  # Attributes processor for additional metadata
   attributes:
     actions:
       - key: environment
         value: "lab"
         action: insert
 
-  # Attributes processor for logs - copies resource attributes to log record attributes
   attributes/logs:
     actions:
       - key: service.name
@@ -56,28 +52,20 @@ processors:
         action: insert
 
 exporters:
-  # Tempo for traces
   otlp/tempo:
     endpoint: tempo:4317
     tls:
       insecure: true
 
-  # Loki for logs
   loki:
     endpoint: http://loki:3100/loki/api/v1/push
     tls:
       insecure: true
 
-  # Logging exporter for debugging (optional)
   logging:
     loglevel: info
     sampling_initial: 5
     sampling_thereafter: 200
-
-  # NOTE: Prometheus exporters removed - metrics now come ONLY from
-  # prometheus_client library exposed at Flask /metrics endpoint.
-  # This eliminates metric duplication and simplifies the pipeline.
-  # OTel traces and logs still flow through collector to Tempo/Loki.
 
 extensions:
   health_check:
@@ -94,10 +82,6 @@ service:
       receivers: [otlp]
       processors: [memory_limiter, resource, attributes, batch]
       exporters: [otlp/tempo, logging]
-
-    # Metrics pipeline removed - Flask app now uses prometheus_client
-    # to expose metrics directly at /metrics endpoint for Prometheus scraping.
-    # This eliminates duplication with OTel SDK metrics.
 
     logs:
       receivers: [otlp]
