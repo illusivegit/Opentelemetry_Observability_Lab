@@ -71,28 +71,28 @@ This eliminates metric duplication while preserving full distributed tracing cap
                              ▼
 ┌─────────────────────────────────────────────────────────────────────┐
 │                  FLASK BACKEND (Port 5000)                          │
-│  ┌───────────────────────────────────────────────────────────────┐ │
-│  │ INSTRUMENTATION LAYER                                         │ │
-│  ├───────────────────────────────────────────────────────────────┤ │
-│  │ ① OpenTelemetry SDK (Traces & Logs)                           │ │
-│  │    • FlaskInstrumentor: HTTP request/response spans           │ │
-│  │    • SQLAlchemyInstrumentor: Database query spans             │ │
-│  │    • OTLP Exporter → collector:4318                           │ │
-│  │                                                               │ │
-│  │ ② Prometheus Client (Metrics)                                 │ │
-│  │    • http_requests_total (Counter)                            │ │
-│  │    • http_request_duration_seconds (Histogram)                │ │
-│  │    • http_errors_total (Counter)                              │ │
-│  │    • db_query_duration_seconds (Histogram)                    │ │
-│  │    • Exposed at /metrics endpoint                             │ │
-│  │                                                               │ │
-│  │ ③ OTel Metrics (Not exported to Prometheus)                   │ │
-│  │    • database_query_duration_seconds (Histogram)              │ │
-│  │    • Kept for potential future OTLP metrics pipeline          │ │
-│  │                                                               │ │
-│  │ ④ SQLite Database                                             │ │
-│  │    • /app/data/tasks.db (persistent volume)                   │ │
-│  └───────────────────────────────────────────────────────────────┘ │
+│  ┌───────────────────────────────────────────────────────────────┐  │
+│  │ INSTRUMENTATION LAYER                                         │  │
+│  ├───────────────────────────────────────────────────────────────┤  │
+│  │ ① OpenTelemetry SDK (Traces & Logs)                          [] []
+│  │    • FlaskInstrumentor: HTTP request/response spans           │  │
+│  │    • SQLAlchemyInstrumentor: Database query spans             │  │
+│  │    • OTLP Exporter → collector:4318                           │  │
+│  │                                                               │  │
+│  │ ② Prometheus Client (Metrics)                                [] [] 
+│  │    • http_requests_total (Counter)                            │  │
+│  │    • http_request_duration_seconds (Histogram)                │  │
+│  │    • http_errors_total (Counter)                              │  │
+│  │    • db_query_duration_seconds (Histogram)                    │  │
+│  │    • Exposed at /metrics endpoint                             │  │
+│  │                                                               │  │
+│  │ ③ OTel Metrics (Not exported to Prometheus)                  [] [] 
+│  │    • database_query_duration_seconds (Histogram)              │  │
+│  │    • Kept for potential future OTLP metrics pipeline          │  │
+│  │                                                               │  │
+│  │ ④ SQLite Database                                            [] []
+│  │    • /app/data/tasks.db (persistent volume)                   │  │
+│  └───────────────────────────────────────────────────────────────┘  │
 └────────────────────────┬──────────────────┬─────────────────────────┘
                          │                  │
                          │ OTLP             │ Prometheus scrape
@@ -129,13 +129,13 @@ This eliminates metric duplication while preserving full distributed tracing cap
                 ▼
 ┌──────────────────────────────────────────────────────────────┐
 │                    STORAGE BACKENDS                          │
-│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐       │
-│  │ TEMPO        │  │ LOKI         │  │ PROMETHEUS   │       │
-│  │ (Traces)     │  │ (Logs)       │  │ (Metrics)    │       │
-│  │ Port: 3200   │  │ Port: 3100   │  │ Port: 9090   │       │
-│  │ Storage:     │  │ Storage:     │  │ Storage:     │       │
-│  │ /tmp/tempo   │  │ /loki        │  │ /prometheus  │       │
-│  └──────────────┘  └──────────────┘  └──────────────┘       │
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐        │
+│  │ TEMPO        │  │ LOKI         │  │ PROMETHEUS   │        │
+│  │ (Traces)     │  │ (Logs)       │  │ (Metrics)    │        │
+│  │ Port: 3200   │  │ Port: 3100   │  │ Port: 9090   │        │
+│  │ Storage:     │  │ Storage:     │  │ Storage:     │        │
+│  │ /tmp/tempo   │  │ /loki        │  │ /prometheus  │        │
+│  └──────────────┘  └──────────────┘  └──────────────┘        │
 └──────────────────────────────────────────────────────────────┘
                              │
                              ▼
@@ -679,7 +679,7 @@ service:
        │
        ▼
 ┌──────────────────┐
-│ BatchSpanProcessor│ ③ Batches spans (10s timeout)
+│BatchSpanProcessor| ③ Batches spans (10s timeout)
 └──────┬───────────┘
        │
        ▼ OTLP/HTTP
@@ -755,7 +755,7 @@ service:
 └──────┬───────────┘
        │
        ▼
-┌──────────────────────┐
+┌────────────────────────┐
 │ BatchLogRecordProcessor│ ③ Batches log records
 └──────┬─────────────────┘
        │

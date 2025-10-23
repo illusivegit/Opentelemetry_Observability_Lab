@@ -134,7 +134,7 @@ This directory contains operational playbooks for common issues encountered when
 ┌─────────────────────────────────────────────────────────────┐
 │  5. Check Architecture Docs                                 │
 │     → Verify your understanding of how it should work       │
-│     → Review DESIGN-DECISIONS.md for context               │
+│     → Review DESIGN-DECISIONS.md for context                │
 └─────────────────────────────────────────────────────────────┘
 ```
 

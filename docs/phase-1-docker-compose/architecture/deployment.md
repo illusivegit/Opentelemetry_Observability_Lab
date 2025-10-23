@@ -629,50 +629,50 @@ services:
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│  Stage 1: Infrastructure Services (No Dependencies)          │
+│  Stage 1: Infrastructure Services (No Dependencies)         │
 ├─────────────────────────────────────────────────────────────┤
-│  • Prometheus        (metrics storage)                       │
-│  • Tempo             (trace storage)                         │
-│  • Loki              (log storage)                           │
+│  • Prometheus        (metrics storage)                      │
+│  • Tempo             (trace storage)                        │
+│  • Loki              (log storage)                          │
 ├─────────────────────────────────────────────────────────────┤
 │  ▼ All three services must be "Up" before next stage        │
 └─────────────────────────────────────────────────────────────┘
 
 ┌─────────────────────────────────────────────────────────────┐
-│  Stage 2: OpenTelemetry Collector                            │
+│  Stage 2: OpenTelemetry Collector                           │
 ├─────────────────────────────────────────────────────────────┤
-│  • Depends on: Prometheus, Tempo, Loki                       │
-│  • Exports metrics/traces/logs to backend services           │
+│  • Depends on: Prometheus, Tempo, Loki                      │
+│  • Exports metrics/traces/logs to backend services          │
 ├─────────────────────────────────────────────────────────────┤
 │  ▼ Collector must be "Up" before next stage                 │
 └─────────────────────────────────────────────────────────────┘
 
 ┌─────────────────────────────────────────────────────────────┐
-│  Stage 3: Backend Application                                │
+│  Stage 3: Backend Application                               │
 ├─────────────────────────────────────────────────────────────┤
-│  • Depends on: otel-collector                                │
-│  • Healthcheck: /metrics endpoint validation                 │
-│  • Must reach "Up (healthy)" status                          │
+│  • Depends on: otel-collector                               │
+│  • Healthcheck: /metrics endpoint validation                │
+│  • Must reach "Up (healthy)" status                         │
 ├─────────────────────────────────────────────────────────────┤
 │  ▼ Backend healthcheck must pass before next stage          │
 └─────────────────────────────────────────────────────────────┘
 
 ┌─────────────────────────────────────────────────────────────┐
-│  Stage 4: Frontend (Nginx)                                   │
+│  Stage 4: Frontend (Nginx)                                  │
 ├─────────────────────────────────────────────────────────────┤
-│  • Depends on: backend (condition: service_healthy)          │
-│  • Waits for backend to pass healthcheck                     │
-│  • Resolves backend DNS name during startup                  │
+│  • Depends on: backend (condition: service_healthy)         │
+│  • Waits for backend to pass healthcheck                    │
+│  • Resolves backend DNS name during startup                 │
 ├─────────────────────────────────────────────────────────────┤
 │  ▼ Frontend starts only after backend is healthy            │
 └─────────────────────────────────────────────────────────────┘
 
 ┌─────────────────────────────────────────────────────────────┐
-│  Stage 5: Grafana (Visualization)                            │
+│  Stage 5: Grafana (Visualization)                           │
 ├─────────────────────────────────────────────────────────────┤
-│  • Depends on: Prometheus, Tempo, Loki                       │
-│  • Loads datasources from provisioning directory             │
-│  • Loads dashboards from provisioning directory              │
+│  • Depends on: Prometheus, Tempo, Loki                      │
+│  • Loads datasources from provisioning directory            │
+│  • Loads dashboards from provisioning directory             │
 └─────────────────────────────────────────────────────────────┘
 ```
 

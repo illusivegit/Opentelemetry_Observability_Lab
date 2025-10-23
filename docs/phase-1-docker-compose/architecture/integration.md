@@ -248,30 +248,30 @@ sleep 10
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│                    Telemetry Data Pipeline                       │
+│                    Telemetry Data Pipeline                      │
 └─────────────────────────────────────────────────────────────────┘
 
 Application Layer (Flask Backend):
 ┌──────────────────────────────────────────────────────────┐
 │ Flask Application (backend/app.py)                       │
-│                                                           │
+│                                                          │
 │ OpenTelemetry SDK Initialization:                        │
-│  ├─► TracerProvider (Traces)                            │
-│  ├─► MeterProvider (Metrics - OTel format)              │
-│  └─► LoggerProvider (Logs)                              │
-│                                                           │
+│  ├─► TracerProvider (Traces)                             │
+│  ├─► MeterProvider (Metrics - OTel format)               │
+│  └─► LoggerProvider (Logs)                               │
+│                                                          │
 │ Prometheus Client (Hybrid Metrics):                      │
 │  └─► Prometheus metrics exposed at /metrics endpoint     │
 └──────────────────────────────────────────────────────────┘
                │                    │
-               │ OTLP/HTTP         │ Prometheus Scrape
-               │ (Port 4318)       │ (Port 5000/metrics)
+               │ OTLP/HTTP          │ Prometheus Scrape
+               │ (Port 4318)        │ (Port 5000/metrics)
                ▼                    ▼
 ┌──────────────────────────────┐  ┌────────────────────┐
 │  OTel Collector (Port 4318)  │  │   Prometheus       │
 │                              │  │  (Direct Scrape)   │
 │  Receivers:                  │  └────────────────────┘
-│   └─► OTLP (HTTP/gRPC)      │
+│   └─► OTLP (HTTP/gRPC)       │
 │                              │
 │  Processors:                 │
 │   ├─► memory_limiter         │

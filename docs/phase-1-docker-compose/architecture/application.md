@@ -75,14 +75,14 @@ The deployed application is a **full-stack task manager** instrumented for obser
 │  │  ┌─────────────────────────────────────────────────────────────┐  │  │
 │  │  │  Instrumentation Layer (3 Pillars):                         │  │  │
 │  │  │                                                             │  │  │
-│  │  │  ① TRACES (OpenTelemetry SDK)                                   │
+│  │  │  ① TRACES (OpenTelemetry SDK)                              [] [] []   
 │  │  │    • FlaskInstrumentor: HTTP request/response spans         │  │  │
 │  │  │    • SQLAlchemyInstrumentor: DB query spans                 │  │  │
 │  │  │    • LoggingInstrumentor: Log correlation                   │  │  │
 │  │  │    • OTLP Exporter → otel-collector:4318/v1/traces          │  │  │
 │  │  │    • Resource attributes: service.name, version, env        │  │  │
 │  │  │                                                             │  │  │
-│  │  │  ② METRICS (HYBRID: Prometheus Client + OTel SDK)              │
+│  │  │  ② METRICS (HYBRID: Prometheus Client + OTel SDK)          [] [] []  
 │  │  │    Prometheus Client (scraped at /metrics):                 │  │  │
 │  │  │    • http_requests_total (Counter)                          │  │  │
 │  │  │    • http_request_duration_seconds (Histogram)              │  │  │
@@ -92,7 +92,7 @@ The deployed application is a **full-stack task manager** instrumented for obser
 │  │  │    OpenTelemetry Metrics (for demonstration):               │  │  │
 │  │  │    • database_query_duration_seconds (Histogram)            │  │  │
 │  │  │                                                             │  │  │
-│  │  │  ③ LOGS (OpenTelemetry SDK)                                     │
+│  │  │  ③ LOGS (OpenTelemetry SDK)                                [] [] []   
 │  │  │    • Structured JSON logging (python-json-logger)           │  │  │
 │  │  │    • Automatic trace_id/span_id injection                   │  │  │
 │  │  │    • OTLP Exporter → otel-collector:4318/v1/logs            │  │  │

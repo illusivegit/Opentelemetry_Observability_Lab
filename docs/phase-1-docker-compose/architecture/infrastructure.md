@@ -14,17 +14,17 @@ The infrastructure is built on a three-layer virtualization stack:
 │                                                                         │
 │  ┌───────────────────────────────────────────────────────────────────┐  │
 │  │                   KVM Hypervisor (Kernel Module)                  │  │
-│  │  • Hardware-accelerated virtualization (Intel VT-x / AMD-V)      │  │
-│  │  • Type-1 hypervisor integrated into Linux kernel                │  │
-│  │  • Production-grade (powers OpenStack, oVirt, RHEV)              │  │
+│  │  • Hardware-accelerated virtualization (Intel VT-x / AMD-V)       │  │
+│  │  • Type-1 hypervisor integrated into Linux kernel                 │  │
+│  │  • Production-grade (powers OpenStack, oVirt, RHEV)               │  │
 │  └───────────────────────────────────────────────────────────────────┘  │
 │                                ↓                                        │
 │  ┌───────────────────────────────────────────────────────────────────┐  │
 │  │              libvirt Management Layer (v9.0+)                     │  │
-│  │  • VM lifecycle management (create, start, stop, destroy)        │  │
-│  │  • Storage pool management (qcow2 images, volumes)               │  │
-│  │  • Virtual network management (bridges, NAT, routing)            │  │
-│  │  • API for automation (virsh CLI, Python bindings)               │  │
+│  │  • VM lifecycle management (create, start, stop, destroy)         │  │
+│  │  • Storage pool management (qcow2 images, volumes)                │  │
+│  │  • Virtual network management (bridges, NAT, routing)             │  │
+│  │  • API for automation (virsh CLI, Python bindings)                │  │
 │  └───────────────────────────────────────────────────────────────────┘  │
 │                                ↓                                        │
 │  ┌───────────────────────────────────────────────────────────────────┐  │
@@ -32,7 +32,7 @@ The infrastructure is built on a three-layer virtualization stack:
 │  │  • Guest OS: Debian 13                                            │  │
 │  │  • IP Address: 192.168.122.250                                    │  │
 │  │  • Hostname: observability-vm (or similar)                        │  │
-│  │  • Purpose: Observability lab deployment target                  │  │
+│  │  • Purpose: Observability lab deployment target                   │  │
 │  └───────────────────────────────────────────────────────────────────┘  │
 └─────────────────────────────────────────────────────────────────────────┘
 ```
