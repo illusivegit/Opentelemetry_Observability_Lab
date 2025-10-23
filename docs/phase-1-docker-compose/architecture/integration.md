@@ -28,44 +28,52 @@ This document details how all components in the observability lab integrate with
 The following diagram illustrates the complete dependency chain across all services:
 
 ```mermaid
-graph TD
-    %% Layer 1: Storage Backends
-    subgraph storage["Layer 1: Storage Backends (No Dependencies)"]
-        tempo[Tempo<br/>Traces]
-        loki[Loki<br/>Logs]
-        prometheus[Prometheus<br/>Metrics]
+graph LR
+    %% Layer 1: Storage Backends (started first, no dependencies)
+    subgraph storage["Layer 1: Storage Backends<br/>(No Dependencies)"]
+        direction TB
+        tempo[Tempo<br/>Trace Storage<br/>Port: 3200]
+        loki[Loki<br/>Log Storage<br/>Port: 3100]
+        prometheus[Prometheus<br/>Metrics Storage<br/>Port: 9090]
     end
 
-    %% Layer 2: Telemetry Collection
-    subgraph collection["Layer 2: Telemetry Collection"]
-        collector[OTel Collector<br/>Aggregator]
+    %% Layer 2: Telemetry Collection (depends on storage)
+    subgraph collection["Layer 2: Telemetry Pipeline<br/>(depends_on: tempo, loki, prometheus)"]
+        collector[OTel Collector<br/>Receives: OTLP<br/>Exports: traces→tempo, logs→loki<br/>Ports: 4317, 4318]
     end
 
-    %% Layer 3: Application
-    subgraph application["Layer 3: Application Layer"]
-        backend[Flask Backend<br/>depends_on: otel-collector]
+    %% Layer 3: Application (depends on collector)
+    subgraph application["Layer 3: Application<br/>(depends_on: otel-collector)"]
+        backend[Flask Backend<br/>Instrumented with OTel<br/>Port: 5000]
     end
 
-    %% Layer 4: Presentation
-    subgraph presentation["Layer 4: Presentation"]
-        frontend[Nginx Frontend<br/>depends_on: backend<br/>condition: service_healthy]
+    %% Layer 4: Presentation (depends on backend health)
+    subgraph presentation["Layer 4: Presentation<br/>(depends_on: backend, condition: service_healthy)"]
+        frontend[Nginx Frontend<br/>Proxies /api/* to backend<br/>Port: 8080]
     end
 
-    %% Layer 5: Visualization
-    subgraph visualization["Layer 5: Visualization (Parallel)"]
-        grafana[Grafana<br/>depends_on: prometheus, tempo, loki]
+    %% Layer 5: Visualization (depends on storage, reads datasources)
+    subgraph visualization["Layer 5: Visualization<br/>(depends_on: prometheus, tempo, loki)"]
+        grafana[Grafana<br/>Queries datasources<br/>Port: 3000]
     end
 
-    %% Dependencies
-    tempo --> collector
-    loki --> collector
-    prometheus --> collector
-    collector --> backend
-    backend --> frontend
+    %% Data Flow (solid arrows = writes data)
+    backend -->|OTLP telemetry| collector
+    collector -->|exports traces| tempo
+    collector -->|exports logs| loki
+    collector -->|remote_write metrics| prometheus
 
-    tempo -.-> grafana
-    loki -.-> grafana
-    prometheus -.-> grafana
+    %% Dependency chain (dashed arrows = depends_on)
+    tempo -.->|must exist before| collector
+    loki -.->|must exist before| collector
+    prometheus -.->|must exist before| collector
+    collector -.->|must exist before| backend
+    backend -.->|must be healthy before| frontend
+
+    %% Query flow (dotted arrows = queries/reads)
+    grafana -.->|queries traces| tempo
+    grafana -.->|queries logs| loki
+    grafana -.->|queries metrics| prometheus
 
     %% Styling with better contrast
     classDef storage fill:#4A90E2,stroke:#333,stroke-width:2px,color:#fff

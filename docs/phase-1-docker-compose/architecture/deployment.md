@@ -65,38 +65,50 @@ The Jenkins pipeline executes a **6-stage deployment workflow** on a dedicated D
 
 ```mermaid
 flowchart TD
-    Start([Jenkins Pipeline Triggered]) --> Controller[Jenkins Controller<br/>Host Machine]
+    Start([Jenkins Pipeline Triggered])
 
-    Controller --> Agent[Jenkins Docker Agent<br/>docker-agent1]
+    subgraph localhost["Local Host Machine (Developer/Jenkins Server)"]
+        Controller[Jenkins Controller]
+        Agent[Jenkins Docker Agent<br/>docker-agent1]
 
-    Agent --> Stage1[Stage 1: Sanity Check<br/>• Verify SSH<br/>• Verify Docker<br/>• Verify Docker Compose]
+        Stage1[Stage 1: Sanity Check<br/>• Verify SSH<br/>• Verify Docker<br/>• Verify Docker Compose]
 
-    Stage1 -->|Tools Available| Stage2[Stage 2: Docker Context<br/>• Test SSH connectivity<br/>• Create vm-lab context<br/>ssh://deploy@192.168.122.250]
+        Stage2[Stage 2: Docker Context<br/>• Test SSH connectivity<br/>• Create vm-lab context<br/>ssh://deploy@192.168.122.250]
 
-    Stage2 -->|Context Created| Stage3[Stage 3: Sync Repository<br/>• mkdir /home/deploy/lab/app<br/>• rsync -az --delete ./ to VM]
+        Stage3[Stage 3: Sync Repository<br/>• mkdir /home/deploy/lab/app<br/>• rsync -az --delete ./ to VM]
 
-    Stage3 -->|Files Synchronized| Stage4[Stage 4: Verify Paths<br/>• List local workspace<br/>• List remote VM files]
+        Stage4[Stage 4: Verify Paths<br/>• List local workspace<br/>• List remote VM files]
 
-    Stage4 -->|Paths Verified| Stage5[Stage 5: Deploy via SSH<br/>• Execute start-lab.sh<br/>• PROJECT=lab<br/>• LAB_HOST=192.168.122.250]
+        Stage5[Stage 5: Deploy via SSH<br/>• Execute start-lab.sh<br/>• PROJECT=lab LAB_HOST=VM_IP]
 
-    Stage5 -->|Deployed| Stage6{Stage 6: Smoke Tests}
+        Stage6{Stage 6: Smoke Tests<br/>HTTP checks from Jenkins}
+    end
 
-    Stage6 -->|Test Frontend| Frontend[http://VM:8080]
-    Stage6 -->|Test Grafana| Grafana[http://VM:3000/login]
-    Stage6 -->|Test Prometheus| Prometheus[http://VM:9090/-/ready]
+    subgraph vm["Target VM (192.168.122.250)"]
+        subgraph compose["Docker Compose Stack (Project: lab)"]
+            Services[7 Services:<br/>• frontend :8080<br/>• backend :5000<br/>• otel-collector :4317/4318<br/>• prometheus :9090<br/>• tempo :3200<br/>• loki :3100<br/>• grafana :3000]
 
-    Frontend --> Success
-    Grafana --> Success
-    Prometheus --> Success{All Tests Pass?}
+            Network[otel-network<br/>Bridge Network<br/>Healthcheck-based Startup]
+        end
+    end
 
-    Success -->|Yes| Complete([Pipeline Complete ✅])
-    Success -->|No| Fail([Pipeline Failed ❌])
+    %% Pipeline flow
+    Start --> Controller
+    Controller --> Agent
+    Agent --> Stage1
+    Stage1 -->|Tools Available| Stage2
+    Stage2 -->|Context Created| Stage3
+    Stage3 -->|Files Synchronized| Stage4
+    Stage4 -->|Paths Verified| Stage5
+    Stage5 -.->|SSH + rsync| Services
+    Stage5 -->|Deployment Complete| Stage6
 
-    Stage5 -.->|SSH + rsync| VM[Target VM<br/>192.168.122.250]
+    %% Smoke tests
+    Stage6 -.->|HTTP GET| Services
+    Stage6 -->|All Pass| Complete([Pipeline Complete ✅])
+    Stage6 -->|Any Fail| Fail([Pipeline Failed ❌])
 
-    VM --> Stack[Docker Compose Stack<br/>Project: lab<br/><br/>Services:<br/>• backend<br/>• frontend<br/>• otel-collector<br/>• prometheus<br/>• tempo<br/>• loki<br/>• grafana]
-
-    Stack --> Network[otel-network<br/>Bridge Network<br/>Healthcheck-based<br/>Startup Ordering]
+    Services --> Network
 
     %% Styling with better contrast
     classDef jenkins fill:#9370DB,stroke:#333,stroke-width:2px,color:#fff
@@ -106,10 +118,9 @@ flowchart TD
     classDef result fill:#FF6B6B,stroke:#333,stroke-width:3px,color:#fff
 
     class Controller,Agent jenkins
-    class Stage1,Stage2,Stage3,Stage4,Stage5 stage
-    class VM,Stack,Network vm
-    class Stage6,Frontend,Grafana,Prometheus test
-    class Success,Complete,Fail result
+    class Stage1,Stage2,Stage3,Stage4,Stage5,Stage6 stage
+    class Services,Network vm
+    class Complete,Fail result
 ```
 
 ### Stage-by-Stage Breakdown
