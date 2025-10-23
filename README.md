@@ -202,7 +202,7 @@ Automated deployment through **containerized Jenkins** with Docker agents and SS
 - Industry best practice implementation
 - Future hardening planned: fail2ban, UFW firewall, 2FA
 
-See: [docs/phase-1-docker-compose/ARCHITECTURE.md - CI/CD Pipeline Architecture](docs/phase-1-docker-compose/ARCHITECTURE.md#cicd-pipeline-architecture)
+See: [docs/phase-1-docker-compose/architecture/cicd-pipeline.md - CI/CD Pipeline Architecture](docs/phase-1-docker-compose/architecture/cicd-pipeline.md)
 
 ### 📊 Production-Ready Observability
 
@@ -337,11 +337,23 @@ docker compose ps
 
 **For the complete production deployment experience:**
 
-See: [docs/phase-1-docker-compose/ARCHITECTURE.md - CI/CD Pipeline Architecture](docs/phase-1-docker-compose/ARCHITECTURE.md#cicd-pipeline-architecture)
+**Prerequisites:**
+- Custom Jenkins agent with required tools (see [jenkins-inbound-agent-with-jq-docker-rsync](jenkins/jenkins-inbound-agent-with-jq-docker-rsync))
+- Jenkins controller and agent running (see [jenkins_setup](jenkins/jenkins_setup))
+- Required plugins installed (see [jenkins_plugins.md](jenkins/jenkins_plugins.md))
+  - SSH Agent Plugin (required)
+  - Docker Pipeline (required)
+  - Docker Plugin (required)
 
-1. Set up Jenkins controller + Docker agent (see docs)
-2. Configure VM target (SSH keys, Docker daemon)
-3. Run pipeline: Checkout → Sync → Deploy → Smoke Tests
+**Setup Steps:**
+1. Build custom Jenkins agent image (Dockerfile in `jenkins/` directory)
+2. Deploy Jenkins controller + agent (run `jenkins/jenkins_setup` script)
+3. Install required plugins via Jenkins UI
+4. Configure VM target (SSH keys, Docker daemon)
+5. Create pipeline job pointing to project repository
+6. Run pipeline: Checkout → Sync → Deploy → Smoke Tests
+
+**Complete Guide:** [docs/phase-1-docker-compose/architecture/cicd-pipeline.md - CI/CD Pipeline Architecture](docs/phase-1-docker-compose/architecture/cicd-pipeline.md)
 
 **Pipeline deploys using:**
 ```bash
@@ -714,7 +726,7 @@ _Backlog carried forward from earlier roadmap:_
 - Leverage EventBridge/SQS for asynchronous flows
 - Measure success with FinOps dashboards comparing on-prem vs. AWS spend
 
-**Full Roadmap:** [ARCHITECTURE.md - Future Roadmap](docs/phase-1-docker-compose/ARCHITECTURE.md#future-roadmap)
+**Full Roadmap:** [architecture/roadmap.md - Future Roadmap](docs/phase-1-docker-compose/architecture/roadmap.md)
 
 ---
 

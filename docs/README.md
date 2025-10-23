@@ -62,6 +62,18 @@
 - Visualization: Grafana dashboards (SLI/SLO, traces)
 - Architecture: Defense-in-depth (Nginx proxy + CORS headers)
 
+**CI/CD Infrastructure Setup:**
+
+For first-time Jenkins deployment, these setup resources are available in the `jenkins/` directory:
+
+| Resource | Type | Purpose |
+|----------|------|---------|
+| **[Jenkins Agent Dockerfile](../jenkins/jenkins-inbound-agent-with-jq-docker-rsync)** | Dockerfile | Custom agent image with jq, Docker CLI, rsync, and SSH client |
+| **[Jenkins Deployment Script](../jenkins/jenkins_setup)** | Shell Script | Docker deployment commands for controller + agent |
+| **[Jenkins Plugins Reference](../jenkins/jenkins_plugins.md)** | Markdown | Required and optional plugin list with installation status |
+
+**Usage:** Build the custom agent image, run the deployment script, then install required plugins via Jenkins UI. See [CI/CD Pipeline Architecture](phase-1-docker-compose/architecture/cicd-pipeline.md) for complete pipeline configuration.
+
 ---
 
 ### Phase 2: Policy as Code & Secure Delivery 📋 Planned

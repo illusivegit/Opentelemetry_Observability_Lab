@@ -10,8 +10,8 @@
 
 - [Executive Summary](#executive-summary)
 - [Current State: Phase 1 Complete](#current-state-phase-1-complete)
-- [Phase 2: Policy as Code & Secure Delivery](#phase-2-policy-as-code--secure-delivery)
-- [Phase 3: Kubernetes Refactoring & Platform Automation](#phase-3-kubernetes-refactoring--platform-automation)
+- [Phase 2: Policy as Code & Secure Delivery](#phase-2-policy-as-code-secure-delivery)
+- [Phase 3: Kubernetes Refactoring & Platform Automation](#phase-3-kubernetes-refactoring-platform-automation)
 - [Phase 4: Cloud-Native AWS Migration](#phase-4-cloud-native-aws-migration)
 - [Technology Evaluation Criteria](#technology-evaluation-criteria)
 - [Cross-Cutting Themes](#cross-cutting-themes)

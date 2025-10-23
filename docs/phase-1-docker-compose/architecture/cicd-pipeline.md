@@ -4,6 +4,74 @@
 
 This document describes the Jenkins-based CI/CD pipeline for the OpenTelemetry Observability Lab. The pipeline automates deployment of the containerized observability stack to a remote VM using SSH-based deployment with rsync for file synchronization.
 
+## Quick Start
+
+For first-time setup of the Jenkins infrastructure:
+
+### 1. Build Custom Agent Image
+
+The custom Jenkins agent includes jq, Docker CLI, docker-compose plugin, rsync, and SSH client:
+
+```bash
+# From project root
+docker build -t jenkins-inbound-agent-with-jq-docker-rsync \
+  -f jenkins/jenkins-inbound-agent-with-jq-docker-rsync .
+```
+
+**See:** [jenkins/jenkins-inbound-agent-with-jq-docker-rsync](../../../jenkins/jenkins-inbound-agent-with-jq-docker-rsync)
+
+### 2. Deploy Jenkins Controller + Agent
+
+Run the deployment script to create the Jenkins network and start both controller and agent:
+
+```bash
+# From project root
+bash jenkins/jenkins_setup
+```
+
+This script:
+- Creates `jenkins-net` Docker bridge network
+- Starts Jenkins controller (ports 8080, 50000)
+- Starts Jenkins agent connected to controller
+
+**See:** [jenkins/jenkins_setup](../../../jenkins/jenkins_setup)
+
+### 3. Install Required Plugins
+
+Access Jenkins UI at `http://localhost:8080` and install:
+
+**Required Plugins:**
+- **SSH Agent Plugin** - For `sshagent(credentials: ['vm-ssh'])` step
+- **Docker Pipeline** - For Docker operations in pipeline
+- **Docker Plugin** - For agent connectivity
+
+**Pre-installed Plugins:**
+- Pipeline Plugin (native)
+- Timestamper Plugin (native)
+- Credentials Plugin (native)
+
+**See:** [jenkins/jenkins_plugins.md](../../../jenkins/jenkins_plugins.md) for complete list
+
+### 4. Configure SSH Credentials
+
+Add the VM SSH key to Jenkins credentials store:
+- Navigate to: Manage Jenkins → Credentials → System → Global credentials
+- Add Credentials → Kind: SSH Username with private key
+- ID: `vm-ssh`
+- Username: `deploy`
+- Private Key: Enter directly or from file
+
+### 5. Create Pipeline Job
+
+- New Item → Pipeline
+- Pipeline → Definition: Pipeline script from SCM
+- SCM: Git → Repository URL: `<your-repo-url>`
+- Script Path: `Jenkinsfile`
+
+For complete pipeline architecture and configuration details, continue reading this document below.
+
+---
+
 ## Jenkins Control Plane Architecture
 
 The Jenkins deployment uses a containerized setup with inbound Docker agents:
