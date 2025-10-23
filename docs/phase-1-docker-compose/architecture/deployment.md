@@ -67,7 +67,7 @@ The Jenkins pipeline executes a **6-stage deployment workflow** on a dedicated D
 flowchart TD
     Start([Jenkins Pipeline Triggered])
 
-    subgraph localhost["Local Host Machine (Developer/Jenkins Server)"]
+    subgraph localhost["Local Host Machine<br/><br/>(Developer/Jenkins Server)<br/><br/> "]
         Controller[Jenkins Controller]
         Agent[Jenkins Docker Agent<br/>docker-agent1]
 
@@ -84,8 +84,8 @@ flowchart TD
         Stage6{Stage 6: Smoke Tests<br/>HTTP checks from Jenkins}
     end
 
-    subgraph vm["Target VM (192.168.122.250)"]
-        subgraph compose["Docker Compose Stack (Project: lab)"]
+    subgraph vm["Target VM (192.168.122.250)<br/><br/> "]
+        subgraph compose["Docker Compose Stack (Project: lab)<br/><br/> "]
             Services[7 Services:<br/>• frontend :8080<br/>• backend :5000<br/>• otel-collector :4317/4318<br/>• prometheus :9090<br/>• tempo :3200<br/>• loki :3100<br/>• grafana :3000]
 
             Network[otel-network<br/>Bridge Network<br/>Healthcheck-based Startup]
@@ -96,15 +96,16 @@ flowchart TD
     Start --> Controller
     Controller --> Agent
     Agent --> Stage1
-    Stage1 -->|Tools Available| Stage2
-    Stage2 -->|Context Created| Stage3
-    Stage3 -->|Files Synchronized| Stage4
-    Stage4 -->|Paths Verified| Stage5
+    Stage1 --> Stage2
+    Stage2 --> Stage3
+    Stage3 --> Stage4
+    Stage4 --> Stage5
     Stage5 -.->|SSH + rsync| Services
-    Stage5 -->|Deployment Complete| Stage6
+    Stage5 --> Stage6
 
-    %% Smoke tests
+    %% Smoke tests - Stage6 queries Services, Services return results
     Stage6 -.->|HTTP GET| Services
+    Services -.->|Response| Stage6
     Stage6 -->|All Pass| Complete([Pipeline Complete ✅])
     Stage6 -->|Any Fail| Fail([Pipeline Failed ❌])
 

@@ -30,7 +30,7 @@ The following diagram illustrates the complete dependency chain across all servi
 ```mermaid
 graph LR
     %% Layer 1: Storage Backends (started first, no dependencies)
-    subgraph storage["Layer 1: Storage Backends<br/>(No Dependencies)"]
+    subgraph storage["Layer 1: Storage Backends<br/><br/>(No Dependencies)<br/><br/> "]
         direction TB
         tempo[Tempo<br/>Trace Storage<br/>Port: 3200]
         loki[Loki<br/>Log Storage<br/>Port: 3100]
@@ -38,42 +38,42 @@ graph LR
     end
 
     %% Layer 2: Telemetry Collection (depends on storage)
-    subgraph collection["Layer 2: Telemetry Pipeline<br/>(depends_on: tempo, loki, prometheus)"]
-        collector[OTel Collector<br/>Receives: OTLP<br/>Exports: traces→tempo, logs→loki<br/>Ports: 4317, 4318]
+    subgraph collection["Layer 2: Telemetry Pipeline<br/><br/>(depends_on: tempo, loki, prometheus)<br/><br/> "]
+        collector[OTel Collector<br/>Receives: OTLP<br/>Ports: 4317, 4318]
     end
 
     %% Layer 3: Application (depends on collector)
-    subgraph application["Layer 3: Application<br/>(depends_on: otel-collector)"]
+    subgraph application["Layer 3: Application<br/><br/>(depends_on: otel-collector)<br/><br/> "]
         backend[Flask Backend<br/>Instrumented with OTel<br/>Port: 5000]
     end
 
     %% Layer 4: Presentation (depends on backend health)
-    subgraph presentation["Layer 4: Presentation<br/>(depends_on: backend, condition: service_healthy)"]
+    subgraph presentation["Layer 4: Presentation<br/><br/>(depends_on: backend healthy)<br/><br/> "]
         frontend[Nginx Frontend<br/>Proxies /api/* to backend<br/>Port: 8080]
     end
 
     %% Layer 5: Visualization (depends on storage, reads datasources)
-    subgraph visualization["Layer 5: Visualization<br/>(depends_on: prometheus, tempo, loki)"]
+    subgraph visualization["Layer 5: Visualization<br/><br/>(depends_on: prometheus, tempo, loki)<br/><br/> "]
         grafana[Grafana<br/>Queries datasources<br/>Port: 3000]
     end
 
     %% Data Flow (solid arrows = writes data)
-    backend -->|OTLP telemetry| collector
-    collector -->|exports traces| tempo
-    collector -->|exports logs| loki
-    collector -->|remote_write metrics| prometheus
+    backend -->|OTLP| collector
+    collector -->|traces| tempo
+    collector -->|logs| loki
+    collector -->|metrics| prometheus
 
     %% Dependency chain (dashed arrows = depends_on)
-    tempo -.->|must exist before| collector
-    loki -.->|must exist before| collector
-    prometheus -.->|must exist before| collector
-    collector -.->|must exist before| backend
-    backend -.->|must be healthy before| frontend
+    tempo -.-> collector
+    loki -.-> collector
+    prometheus -.-> collector
+    collector -.-> backend
+    backend -.-> frontend
 
     %% Query flow (dotted arrows = queries/reads)
-    grafana -.->|queries traces| tempo
-    grafana -.->|queries logs| loki
-    grafana -.->|queries metrics| prometheus
+    grafana -..-> tempo
+    grafana -..-> loki
+    grafana -..-> prometheus
 
     %% Styling with better contrast
     classDef storage fill:#4A90E2,stroke:#333,stroke-width:2px,color:#fff
