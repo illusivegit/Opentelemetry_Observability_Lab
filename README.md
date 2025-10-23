@@ -6,8 +6,8 @@
 
 ### ⭐ Highlights
 
-- **Three Pillars, Clean Separation**  
-  Traces (**OTel → Tempo**), Logs (**JSON → Loki**), Metrics (**Prometheus client only** to prevent duplication).
+- **Three Pillars, Clean Separation**
+  Traces (**OTel → Tempo**), Logs (**JSON → Loki**), Metrics (**Hybrid: Prometheus for HTTP, OTel for DB**).
 - **Reverse Proxy Resilience**  
   Nginx dynamic DNS + variable `proxy_pass` fixed the 502/DNS race on container restart.
 - **End-to-End Tracing**  
@@ -23,7 +23,7 @@
 
 | Area | Decision | Why | Outcome |
 |---|---|---|---|
-| **Metrics** | Prometheus client (not OTel metrics) | Avoid duplicate series / confusion | One source of truth for SLIs |
+| **Metrics** | Hybrid (Prometheus + OTel) | Prometheus for HTTP metrics, OTel for DB metrics | Complementary instrumentation |
 | **API Pathing** | Keep `/api` prefix via Nginx → Flask | Transparent routing, simpler config | Fewer edge-cases & rewrites |
 | **Proxy Resilience** | Dynamic DNS + `$upstream` `proxy_pass` | Backends get new IPs on restart | No more 502s on container churn |
 | **Security** | SSH key-only auth + locked password | Production-grade baseline | Safer CI/CD deploy path |
@@ -121,7 +121,7 @@ This is **milestone 1** of the **On-Prem Domain**—a comprehensive learning pat
 ### Application Stack
 
 - **Frontend:** Nginx reverse proxy serving static HTML/JS
-- **Backend:** Flask (Python 3.11) with full OpenTelemetry instrumentation
+- **Backend:** Flask (Python 3.12) with full OpenTelemetry instrumentation
 - **Database:** SQLite (migrating to PostgreSQL in Phase 3)
 - **Observability:** OpenTelemetry Collector, Tempo, Prometheus, Loki, Grafana
 
@@ -225,7 +225,8 @@ Over **100,000 words** of documentation covering:
 - **DESIGN-DECISIONS.md:** All architectural choices, trade-offs, and rationale — `docs/phase-1-docker-compose/DESIGN-DECISIONS.md`
 - **JOURNEY.md:** The story of building this (struggles, breakthroughs, lessons) — `docs/phase-1-docker-compose/JOURNEY.md`
 - **IMPLEMENTATION-GUIDE.md:** Technical deep-dive with troubleshooting — `docs/phase-1-docker-compose/IMPLEMENTATION-GUIDE.md`
-- **Deployment Verification:** Step-by-step deployment validation — `docs/phase-1-docker-compose/deployment-verification.md`
+- **Verification Guide:** Deployment verification and CI/CD testing — `docs/phase-1-docker-compose/VERIFICATION-GUIDE.md`
+- **Configuration Reference:** Complete YAML configuration guide — `docs/phase-1-docker-compose/CONFIGURATION-REFERENCE.md`
 
 ### 🧪 Battle-Tested
 
@@ -378,7 +379,7 @@ ssh ${VM_USER}@${VM_IP} "
 3. Navigate to Grafana → Dashboards → "SLI/SLO Dashboard - Task Manager"
 4. See metrics, traces, and logs populate
 
-**Detailed Verification Guide:** [phase-1-docker-compose/deployment-verification.md](docs/phase-1-docker-compose/deployment-verification.md)
+**Detailed Verification Guide:** [phase-1-docker-compose/VERIFICATION-GUIDE.md](docs/phase-1-docker-compose/VERIFICATION-GUIDE.md)
 
 ---
 
@@ -395,11 +396,13 @@ ssh ${VM_USER}@${VM_IP} "
 | **[Architecture](docs/phase-1-docker-compose/ARCHITECTURE.md)** | Complete system architecture from infrastructure to application | 47,000 words |
 | **[Design Decisions](docs/phase-1-docker-compose/DESIGN-DECISIONS.md)** | All architectural decisions with trade-offs and rationale | 15,000 words |
 | **[Journey](docs/phase-1-docker-compose/JOURNEY.md)** | The story of building this (failures, breakthroughs, lessons) | 12,000 words |
-| **[Implementation Guide](docs/phase-1-docker-compose/IMPLEMENTATION-GUIDE.md)** | Technical deep-dive with troubleshooting scenarios | 47,000 words |
-| **[Deployment Verification](docs/phase-1-docker-compose/deployment-verification.md)** | Step-by-step post-deployment validation | 4,000 words |
-| **[Troubleshooting](docs/phase-1-docker-compose/troubleshooting/)** | Operational playbooks for common issues | 8,000 words |
+| **[Implementation Guide](docs/phase-1-docker-compose/IMPLEMENTATION-GUIDE.md)** | Architecture, integration patterns, and lessons learned | 18,000 words |
+| **[Configuration Reference](docs/phase-1-docker-compose/CONFIGURATION-REFERENCE.md)** | Complete YAML configuration guide for all components | 25,000 words |
+| **[Verification Guide](docs/phase-1-docker-compose/VERIFICATION-GUIDE.md)** | Deployment verification and CI/CD testing procedures | 28,000 words |
+| **[Troubleshooting](docs/phase-1-docker-compose/troubleshooting/)** | Operational playbooks for common issues | 12,000 words |
+| **[Code Snippets](docs/phase-1-docker-compose/snippets/)** | Reusable configuration examples | Reference library |
 
-Troubleshooting quick links: [Common Verification Issues](docs/phase-1-docker-compose/troubleshooting/common-verification-issues.md), [Troubleshooting Journey](docs/phase-1-docker-compose/troubleshooting/troubleshooting-journey.md), [Nginx `proxy_pass` Options](docs/phase-1-docker-compose/troubleshooting/nginx-proxy-pass-options.md)
+Troubleshooting quick links: [Common Issues](docs/phase-1-docker-compose/troubleshooting/common-issues.md), [Metrics Dropdown Issue](docs/phase-1-docker-compose/troubleshooting/metrics-dropdown-issue.md), [Trace Search Guide](docs/phase-1-docker-compose/troubleshooting/trace-search-guide.md)
 
 ### Cross-Cutting Knowledge
 
@@ -407,8 +410,10 @@ Troubleshooting quick links: [Common Verification Issues](docs/phase-1-docker-co
 |----------|---------|------|
 | **[Observability Fundamentals](docs/cross-cutting/observability-fundamentals.md)** | Three Pillars, SLI/SLO, OpenTelemetry basics | 15,000 words |
 | **[TraceQL Reference](docs/cross-cutting/traceql-reference.md)** | Query language guide for Tempo | 4,000 words |
+| **[PromQL Reference](docs/cross-cutting/promql-reference.md)** | Prometheus query language guide | 8,000 words |
+| **[LogQL Reference](docs/cross-cutting/logql-reference.md)** | Loki query language guide | 7,000 words |
 
-**Total:** 152,000+ words across all documentation
+**Total:** 180,000+ words across all documentation
 
 ### Quick References
 
@@ -529,20 +534,22 @@ histogram_quantile(0.95, sum(rate(db_query_duration_seconds_bucket[5m])) by (le,
 
 **Key Design Decisions:**
 
-1. **Nginx Reverse Proxy** (not CORS headers) for `/api/*` routing
+1. **Nginx Reverse Proxy + CORS Headers** (defense-in-depth) for `/api/*` routing
    - Same-origin requests eliminate preflight overhead
-   - Production-standard architecture
-   - See: [DESIGN-DECISIONS.md - DD-003](DESIGN-DECISIONS.md#dd-003-frontend-backend-communication-nginx-proxy-vs-cors-headers)
+   - Redundant CORS configuration for fallback scenarios
+   - Production-standard architecture with safety nets
+   - See: [DESIGN-DECISIONS.md - DD-003](docs/phase-1-docker-compose/DESIGN-DECISIONS.md#dd-003-frontend-backend-communication-nginx-proxy-vs-cors-headers)
 
 2. **Dynamic DNS Resolution** in Nginx (not static hostname)
    - Handles backend container restarts gracefully
    - No 502 errors on IP changes
-   - See: [DESIGN-DECISIONS.md - DD-007](DESIGN-DECISIONS.md#dd-007-nginx-dns-resolution-static-vs-dynamic)
+   - See: [DESIGN-DECISIONS.md - DD-007](docs/phase-1-docker-compose/DESIGN-DECISIONS.md#dd-007-nginx-dns-resolution-static-vs-dynamic)
 
-3. **Prometheus Client for Metrics** (not OTel SDK metrics)
-   - Eliminates duplication (single source of truth)
-   - OTel reserved for traces and logs (distributed context)
-   - See: [DESIGN-DECISIONS.md - DD-006](DESIGN-DECISIONS.md#dd-006-metric-instrumentation-prometheus-client-vs-otel-sdk-metrics)
+3. **Hybrid Metrics Strategy** (Prometheus + OTel)
+   - Prometheus Client for HTTP/SLI metrics (request rates, errors, latency)
+   - OpenTelemetry SDK for database metrics (query duration, operation types)
+   - Complementary approaches for different metric types
+   - See: [DESIGN-DECISIONS.md - DD-006](docs/phase-1-docker-compose/DESIGN-DECISIONS.md#dd-006-metric-instrumentation-prometheus-client-vs-otel-sdk-metrics)
 
 **Full Architecture Docs:** [ARCHITECTURE.md](docs/phase-1-docker-compose/ARCHITECTURE.md)
 
@@ -562,7 +569,7 @@ histogram_quantile(0.95, sum(rate(db_query_duration_seconds_bucket[5m])) by (le,
 
 | Component | Version | Purpose |
 |-----------|---------|---------|
-| **Python** | 3.11 | Backend runtime |
+| **Python** | 3.12 | Backend runtime |
 | **Flask** | 3.0.0 | Web framework |
 | **SQLAlchemy** | 3.1.1 | ORM (migrating to PostgreSQL in Phase 3) |
 | **Nginx** | Alpine (latest) | Reverse proxy, static file server |
@@ -713,7 +720,7 @@ _Backlog carried forward from earlier roadmap:_
 - Leverage EventBridge/SQS for asynchronous flows
 - Measure success with FinOps dashboards comparing on-prem vs. AWS spend
 
-**Full Roadmap:** [ARCHITECTURE.md - Future Roadmap](ARCHITECTURE.md#future-roadmap)
+**Full Roadmap:** [ARCHITECTURE.md - Future Roadmap](docs/phase-1-docker-compose/ARCHITECTURE.md#future-roadmap)
 
 ---
 
@@ -790,10 +797,10 @@ That's how you go from reading about distributed tracing to **understanding** ho
 **Status:** ✅ Milestone 1 Complete | 🚧 Phase 2 Planning
 
 **Documentation Stats:**
-- 📄 6 core documents
-- 📝 125,000+ words
+- 📄 14+ core documents (modularized architecture)
+- 📝 150,000+ words
 - 🎯 100% coverage (infrastructure → application → observability → CI/CD)
-- 📊 15+ architecture diagrams
-- 🔧 50+ design decisions documented
+- 📊 20+ architecture diagrams
+- 🔧 16 design decisions documented
 
 **Ready to Learn? Read:** [JOURNEY.md](docs/phase-1-docker-compose/JOURNEY.md) - Start here for the full story.

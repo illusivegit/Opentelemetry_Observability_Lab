@@ -85,9 +85,9 @@ pipeline {
       steps {
         sh '''
           set -eu
-          curl -sf http://${VM_IP}:8080 >/dev/null || true
-          curl -sf http://${VM_IP}:3000/login >/dev/null || true
-          curl -sf http://${VM_IP}:9090/-/ready >/dev/null || true
+          curl -sf http://${VM_IP}:8080 >/dev/null 
+          curl -sf http://${VM_IP}:3000/login >/dev/null 
+          curl -sf http://${VM_IP}:9090/-/ready >/dev/null 
         '''
       }
     }

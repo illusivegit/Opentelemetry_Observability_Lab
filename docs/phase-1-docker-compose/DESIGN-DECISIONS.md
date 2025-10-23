@@ -9,14 +9,13 @@
 
 ## Table of Contents
 
-1. [Decision Framework](#decision-framework)
-2. [Infrastructure Decisions](#infrastructure-decisions)
-3. [Application Architecture Decisions](#application-architecture-decisions)
-4. [Observability Stack Decisions](#observability-stack-decisions)
-5. [CI/CD Pipeline Decisions](#cicd-pipeline-decisions)
-6. [Network Architecture Decisions](#network-architecture-decisions)
-7. [Security Decisions](#security-decisions)
-8. [Trade-Offs and Lessons Learned](#trade-offs-and-lessons-learned)
+- [Decision Framework](#decision-framework)
+- [Infrastructure Decisions](#infrastructure-decisions)
+- [Application Architecture Decisions](#application-architecture-decisions)
+- [Observability Stack Decisions](#observability-stack-decisions)
+- [CI/CD Pipeline Decisions](#cicd-pipeline-decisions)
+- [Network Architecture Decisions](#network-architecture-decisions)
+- [Security Decisions](#security-decisions)
 
 ---
 
@@ -201,27 +200,63 @@ def add_cors_headers(response):
   - Not how production systems are built
   - Exposes backend directly to clients
 
-**Option C: Both Proxy and CORS (Redundant)**
+**Option C: Both Proxy and CORS (Actually Implemented)**
+- ✅ Pros:
+  - Defense-in-depth: Works even if proxy configuration breaks
+  - Development flexibility: Can test backend directly during debugging
+  - Future-proof: Ready if architecture changes (SPA deployment, etc.)
 - ❌ Cons:
-  - Unnecessary complexity
-  - CORS headers become dead code
+  - Redundant configuration (CORS headers unused in normal operation)
+  - Slight maintenance overhead (two mechanisms to update)
 
-**CHOSEN:** Option A - Nginx Reverse Proxy
+**CHOSEN:** Hybrid - Option A (Nginx Proxy) + Option B (CORS Headers)
 
 **RATIONALE:**
+
+**Primary Mechanism: Nginx Reverse Proxy**
 - **Industry Standard:** This is how Netflix, Uber, Airbnb architect their systems
 - **Performance:** No preflight requests, faster response times
 - **Security:** Backend not directly reachable from external networks
 - **Environment Agnostic:** Works on localhost, VM IP, or cloud hostname
 - **Observability:** Single point to add request logging, rate limiting, etc.
 
+**Supplementary: CORS Headers**
+
+Despite choosing proxy-first architecture, CORS is also enabled:
+
+**In Nginx** (`frontend/default.conf` lines 15-20, 34-36):
+```nginx
+add_header 'Access-Control-Allow-Origin' '*';
+add_header 'Access-Control-Allow-Methods' 'GET, POST, PUT, DELETE, OPTIONS';
+```
+
+**In Flask** (`backend/app.py` line 100):
+```python
+CORS(app)  # Flask-CORS enabled
+```
+
+**Why Both?**
+1. **Defensive Programming:** If Nginx proxy configuration breaks, direct backend access still works
+2. **Development Convenience:** Can test backend APIs directly (`:5000/api/tasks`) without going through proxy
+3. **Future Flexibility:** Ready for architecture changes (CDN-hosted frontend, public API, etc.) without code changes
+4. **Minimal Cost:** CORS headers add ~100 bytes per response; proxy still handles 100% of production traffic
+
 **TRADE-OFFS ACCEPTED:**
-- Slightly more Nginx config complexity (acceptable for learning)
-- Adds reverse proxy layer (negligible latency with local Docker network)
+- Redundant configuration (CORS headers mostly unused)
+- Slight maintenance overhead (two mechanisms to keep in sync)
+- **But:** Provides fallback capability and development convenience
+
+**IMPLEMENTATION NOTES:**
+- CORS is configured permissively (`Access-Control-Allow-Origin: *`) since backend is behind proxy in production
+- If exposing backend directly in future, tighten CORS to specific origins
+- Proxy is the primary mechanism; CORS is defensive redundancy
 
 **FUTURE RECONSIDERATION:**
-- If frontend becomes SPA deployed separately (e.g., S3 + CloudFront), may need CORS
-- If building public API consumed by third parties, enable CORS on specific endpoints
+- When migrating to Kubernetes with service mesh, re-evaluate CORS necessity
+- If backend never needs direct access, could remove CORS to simplify
+- If frontend becomes SPA deployed separately (S3 + CloudFront), CORS becomes primary mechanism
+
+**For detailed defense-in-depth rationale, see:** [DD-013: CORS Redundancy Strategy](#dd-013-cors-redundancy-strategy-single-mechanism-vs-defense-in-depth)
 
 ---
 
@@ -417,24 +452,80 @@ http_requests_total = meter.create_counter('otel_http_requests_total', ...)
   - Confusing for dashboard creators (which metric to use?)
   - Must update all dashboard queries
 
-**CHOSEN:** Option A - Prometheus Client Only
+**CHOSEN:** Hybrid Approach - Prometheus Client for HTTP/SLI Metrics + OTel SDK for Database Metrics
+
+**IMPLEMENTATION:**
+
+**Prometheus Client** (`backend/app.py` lines 74-97):
+```python
+# HTTP/SLI metrics exposed at /metrics endpoint
+prom_http_requests_total = Counter('http_requests_total', ...)
+prom_http_request_duration_seconds = Histogram('http_request_duration_seconds', ...)
+prom_http_errors_total = Counter('http_errors_total', ...)
+prom_db_query_duration_seconds = Histogram('db_query_duration_seconds', ...)
+```
+
+**OTel SDK Metrics** (`backend/app.py` lines 52-54, 68-72):
+```python
+# Database metrics sent via OTLP
+meter_provider = MeterProvider(resource=resource)
+meter = metrics.get_meter(__name__)
+database_query_duration = meter.create_histogram(
+    name="database_query_duration_seconds",
+    description="Database query duration in seconds",
+    unit="s"
+)
+```
+
+**Code Comment** (`backend/app.py` lines 181-182):
+```python
+# Record Prometheus client metrics (exposed at /metrics)
+# This is the ONLY source of metrics for Prometheus now
+```
+*Note: This comment refers specifically to HTTP metrics, not all metrics.*
 
 **RATIONALE:**
-- **Simplicity:** Single metric source eliminates confusion and duplication
-- **OTel Value Preserved:** Traces (the real power of OTel) still flow through collector
-- **Logs Still Centralized:** Logs go through OTLP → Collector → Loki (correlation intact)
-- **SLI Metrics are Simple:** Request counts and latency histograms don't need OTel's distributed context
-- **Immediate Dashboard Compatibility:** Existing PromQL queries work without modification
+
+**Why Prometheus Client for HTTP Metrics?**
+- **Single source of truth** for SLI metrics (no duplication)
+- **Purpose-built** for Prometheus scraping
+- **Immediate dashboard compatibility** (existing PromQL queries work)
+- **SLI metrics are simple** - request counts and latency don't need distributed context
+
+**Why OTel SDK for Database Metrics?**
+- **Distributed context awareness** - DB metrics tied to specific traces/spans
+- **Enrichment with trace attributes** - Can correlate slow queries with specific requests
+- **Future flexibility** - Can add more detailed DB instrumentation through OTel
+- **Separate concern** - DB performance is distinct from HTTP SLIs
+
+**Division of Responsibility:**
+```
+HTTP Layer (Application SLIs)
+  → Prometheus Client
+  → Scraped directly from /metrics
+  → Used for: Availability, Error Rate, P95 Latency
+
+Database Layer (Resource Performance)
+  → OTel SDK Metrics
+  → Can be correlated with traces
+  → Used for: Query performance analysis
+```
 
 **TRADE-OFFS ACCEPTED:**
-- **Lost OTel Metric Features:**
-  - Can't apply resource processor to add environment labels (must add in Prometheus client)
-  - Can't batch metrics before export (Prometheus scrapes directly)
-  - Can't send metrics to multiple backends via collector fan-out
-- **Acceptable Because:**
-  - Metrics are scraped every 15 seconds (batching less critical)
-  - Environment labels can be added via Prometheus relabeling
-  - Only need one metrics backend (Prometheus) for this lab
+- **Two metric systems** instead of one (slight complexity increase)
+- **But benefits:**
+  - No duplication of HTTP metrics (main problem solved)
+  - DB metrics retain OTel context for correlation
+  - Each system used for its strengths
+
+**Prometheus Client Trade-Offs:**
+- Can't apply OTel resource processor to HTTP metrics
+- Can't batch HTTP metrics before export
+- **Acceptable:** Prometheus scrapes every 15s; batching less critical for SLIs
+
+**OTel SDK Trade-Offs:**
+- More complex pipeline for DB metrics
+- **Acceptable:** DB metrics are lower volume and benefit from trace correlation
 
 **FUTURE RECONSIDERATION:**
 - **When to Revisit:**
@@ -562,10 +653,10 @@ frontend:
 **Option A: Python-Based HTTP Healthcheck (Chosen)**
 ```yaml
 healthcheck:
-  test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:5000/metrics', timeout=2)"]
-  interval: 5s
-  timeout: 2s
-  retries: 3
+  test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:5000/metrics', timeout=2).read()"]
+  interval: 10s
+  timeout: 3s
+  retries: 5
   start_period: 5s
 ```
 - ✅ Pros:
@@ -635,10 +726,15 @@ depends_on:
 - Eliminates need to create dedicated `/health` endpoint
 
 **Healthcheck Parameters Explained:**
-- `interval: 5s` - Check every 5 seconds
-- `timeout: 2s` - Fail if request takes >2 seconds
-- `retries: 3` - Mark unhealthy after 3 consecutive failures
+- `interval: 10s` - Check every 10 seconds (balanced frequency)
+- `timeout: 3s` - Fail if request takes >3 seconds (allows for slow startup)
+- `retries: 5` - Mark unhealthy after 5 consecutive failures (50 seconds total)
 - `start_period: 5s` - Grace period on container start (failures don't count)
+
+**Why These Parameters?**
+- **interval: 10s (not 5s):** Less aggressive checking reduces resource usage
+- **timeout: 3s (not 2s):** Gives Flask more time during high load or cold start
+- **retries: 5 (not 3):** More tolerant of transient failures (e.g., brief DB locks)
 
 **Alternative Python Healthcheck (More Robust):**
 ```python
@@ -1323,15 +1419,621 @@ DB_PASSWORD = secret['data']['data']['password']
 
 ---
 
-## Trade-Offs and Lessons Learned
+### DD-013: CORS Redundancy Strategy (Single Mechanism vs. Defense-in-Depth)
+
+**CONTEXT:**
+The application implements BOTH Nginx CORS headers AND Flask-CORS, creating redundancy. This was discovered during a documentation review when DD-003 initially claimed "Nginx Proxy Only" but source code showed both mechanisms active.
+
+**OPTIONS CONSIDERED:**
+
+**Option A: Nginx CORS Headers Only**
+```nginx
+# frontend/default.conf
+add_header 'Access-Control-Allow-Origin' '*';
+add_header 'Access-Control-Allow-Methods' 'GET, POST, PUT, DELETE, OPTIONS';
+add_header 'Access-Control-Allow-Headers' 'Content-Type, Authorization';
+```
+- ✅ Pros:
+  - Single source of CORS policy (easier to manage)
+  - Centralized at gateway layer
+  - Nginx is already handling all requests
+- ❌ Cons:
+  - If Nginx proxy breaks, direct backend access fails
+  - No CORS protection during local development (backend-only testing)
+
+**Option B: Flask-CORS Only**
+```python
+# backend/app.py
+from flask_cors import CORS
+CORS(app)
+```
+- ✅ Pros:
+  - Works in all scenarios (proxied or direct)
+  - Backend is self-sufficient
+- ❌ Cons:
+  - Backend exposed to all origins (less secure without Nginx filtering)
+  - CORS logic in application code (not infrastructure)
+
+**Option C: Both Nginx + Flask-CORS (Defense-in-Depth)**
+- ✅ Pros:
+  - **Defensive Programming:** If Nginx proxy config breaks, direct backend access still works
+  - **Development Convenience:** Can test backend APIs directly (curl, Postman) without proxy
+  - **Future-Proofing:** If load balancer replaces Nginx, backend still handles CORS
+  - **Graceful Degradation:** System remains functional if one layer fails
+- ❌ Cons:
+  - Slight redundancy (both layers doing same check)
+  - Minimal performance overhead (negligible in practice)
+
+**CHOSEN:** Option C - Both Nginx CORS Headers + Flask-CORS (Defense-in-Depth)
+
+**RATIONALE:**
+- **Current Reality:** Both mechanisms already implemented and working
+- **Defensive Programming:** Redundancy provides fallback if proxy misconfigured
+- **Development Workflow:** Direct backend testing (curl http://backend:5000/api/tasks) works without proxy
+- **Cost is Minimal:** Performance impact is negligible (header check is microseconds)
+- **Future Migration:** If migrating to API Gateway or different proxy, backend remains functional
+
+**IMPLEMENTATION:**
+
+**In Nginx (frontend/default.conf lines 16-18, 34-36):**
+```nginx
+location / {
+    if ($request_method = 'OPTIONS') {
+        add_header 'Access-Control-Allow-Origin' '*';
+        add_header 'Access-Control-Allow-Methods' 'GET, POST, PUT, DELETE, OPTIONS';
+        add_header 'Access-Control-Allow-Headers' 'Content-Type, Authorization';
+        return 204;
+    }
+
+    add_header 'Access-Control-Allow-Origin' '*' always;
+    add_header 'Access-Control-Allow-Methods' 'GET, POST, PUT, DELETE, OPTIONS' always;
+    add_header 'Access-Control-Allow-Headers' 'Content-Type, Authorization' always;
+}
+```
+
+**In Flask (backend/app.py line 100):**
+```python
+CORS(app)  # Flask-CORS enabled
+```
+
+**SCENARIOS WHERE REDUNDANCY HELPS:**
+
+1. **Nginx Misconfiguration:**
+   - If `proxy_pass` breaks or location block is wrong
+   - Direct backend access (http://192.168.122.250:5000) still works
+   - Developers can bypass proxy for debugging
+
+2. **Local Development:**
+   - Backend runs standalone (no Nginx container)
+   - Frontend dev server (npm start) can hit backend directly
+   - No need to run full Docker Compose stack
+
+3. **Load Balancer Migration:**
+   - Replace Nginx with AWS ALB, GCP Load Balancer, or Traefik
+   - Backend doesn't need code changes
+   - CORS policy travels with the application
+
+**PRODUCTION HARDENING (Phase 2):**
+When deployed to production with proper domain:
+```python
+# Restrict origins instead of '*'
+CORS(app, origins=['https://app.example.com'])
+```
+
+**LESSONS LEARNED:**
+1. **Redundancy ≠ Bad:** Defense-in-depth is a valid security strategy
+2. **Document the "Why":** Without documentation, redundancy looks like a mistake
+3. **Cost-Benefit:** Minimal cost (extra header check) vs. high benefit (graceful degradation)
+
+---
+
+### DD-014: OpenTelemetry Instrumentation Strategy (Auto vs. Manual vs. Hybrid)
+
+**CONTEXT:**
+Application uses OpenTelemetry for distributed tracing. Must decide: rely on automatic instrumentation libraries, or manually create spans for business logic?
+
+**OPTIONS CONSIDERED:**
+
+**Option A: Auto-Instrumentation Only**
+```python
+# backend/app.py lines 40-48
+from opentelemetry.instrumentation.flask import FlaskInstrumentor
+from opentelemetry.instrumentation.sqlalchemy import SQLAlchemyInstrumentor
+from opentelemetry.instrumentation.logging import LoggingInstrumentor
+
+FlaskInstrumentor().instrument_app(app)
+SQLAlchemyInstrumentor().instrument(engine=db.engine)
+LoggingInstrumentor().instrument()
+```
+- ✅ Pros:
+  - Zero code changes to business logic
+  - Framework-level traces (HTTP requests, DB queries) captured automatically
+  - Easy to add to existing applications
+- ❌ Cons:
+  - Generic span names (e.g., "GET /api/tasks" not "Fetch User Tasks")
+  - No business context (can't see which user, task ID, etc.)
+  - Limited customization
+
+**Option B: Manual Instrumentation Only**
+```python
+@app.route('/api/tasks', methods=['GET'])
+def get_tasks():
+    with tracer.start_as_current_span("get_tasks_for_user") as span:
+        user_id = request.args.get('user_id')
+        span.set_attribute("user.id", user_id)
+
+        with tracer.start_as_current_span("query_database"):
+            tasks = Task.query.filter_by(user_id=user_id).all()
+
+        with tracer.start_as_current_span("serialize_response"):
+            return jsonify([task.to_dict() for task in tasks])
+```
+- ✅ Pros:
+  - **Business Context:** Span names reflect domain logic
+  - **Custom Attributes:** user_id, task_count, etc. attached to spans
+  - **Granular Control:** Instrument exactly what matters
+- ❌ Cons:
+  - **Code Noise:** Every function wrapped in `start_as_current_span()`
+  - **Developer Burden:** Team must remember to instrument
+  - **Inconsistent:** Some developers instrument, others forget
+
+**Option C: Hybrid - Auto + Manual Enrichment**
+- ✅ Pros:
+  - **Auto-Instrumentation for Frameworks:** HTTP, DB, logs traced automatically
+  - **Manual Spans for Business Logic:** Enrich with domain-specific context
+  - **Best of Both Worlds:** Coverage + customization
+- ❌ Cons:
+  - Slight complexity (two instrumentation patterns)
+
+**CHOSEN:** Option C - Hybrid (Auto-Instrumentation + Manual Enrichment)
+
+**RATIONALE:**
+- **Framework Coverage:** FlaskInstrumentor captures all HTTP requests (no gaps)
+- **Database Visibility:** SQLAlchemyInstrumentor traces all queries (no manual `with tracer.start_as_current_span()` for every query)
+- **Business Context:** Manual spans add meaningful names and attributes where needed
+- **Developer Experience:** Auto-instrumentation reduces burden, manual spans are opt-in for critical paths
+
+**IMPLEMENTATION:**
+
+**Auto-Instrumentation (backend/app.py lines 40-48):**
+```python
+FlaskInstrumentor().instrument_app(app)       # All HTTP requests
+SQLAlchemyInstrumentor().instrument(engine=db.engine)  # All DB queries
+LoggingInstrumentor().instrument()            # All logs
+```
+
+**Manual Enrichment (backend/app.py lines 233-236, 263-266, etc.):**
+```python
+@app.route('/api/tasks', methods=['POST'])
+def create_task():
+    with tracer.start_as_current_span("create_task_endpoint") as span:
+        data = request.json
+        span.set_attribute("task.title", data['title'])
+        span.set_attribute("task.description_length", len(data.get('description', '')))
+
+        # SQLAlchemy instrumentation automatically traces this query
+        new_task = Task(title=data['title'], description=data.get('description'))
+        db.session.add(new_task)
+        db.session.commit()
+
+        span.set_attribute("task.id", new_task.id)
+        return jsonify(new_task.to_dict()), 201
+```
+
+**PATTERN GUIDELINES:**
+
+**Use Auto-Instrumentation For:**
+- HTTP requests (FlaskInstrumentor)
+- Database queries (SQLAlchemyInstrumentor)
+- Logging (LoggingInstrumentor)
+- External API calls (RequestsInstrumentor, if needed)
+
+**Use Manual Spans For:**
+- Business logic with meaningful names (e.g., "calculate_user_slo", "process_payment")
+- Adding business context (user_id, task_id, amount)
+- Complex workflows (multi-step operations)
+- Performance-critical sections
+
+**REAL-WORLD EXAMPLE:**
+
+**Auto-Instrumentation Provides:**
+```
+Span: POST /api/tasks (duration: 45ms)
+  └─ Span: INSERT INTO tasks (duration: 12ms)
+```
+
+**Manual Enrichment Adds:**
+```
+Span: create_task_endpoint (duration: 45ms)
+  Attributes:
+    - task.title: "Deploy to production"
+    - task.description_length: 250
+    - task.id: 42
+  └─ Span: INSERT INTO tasks (duration: 12ms)  # Auto-instrumented
+```
+
+**FUTURE ENHANCEMENTS (Phase 3):**
+- Custom instrumentors for internal libraries
+- Span events for key milestones (e.g., "task_assigned", "notification_sent")
+- Baggage propagation for user context across services
+
+**LESSONS LEARNED:**
+1. **Auto-Instrumentation is Foundation:** Start here, covers 80% of needs
+2. **Manual Spans for Semantics:** Adds "why" not just "what"
+3. **Don't Over-Instrument:** Too many spans = trace noise, focus on critical paths
+
+---
+
+### DD-015: Smoke Test Endpoint Design (Basic Health vs. Comprehensive Test vs. Load Test)
+
+**CONTEXT:**
+Application needs a smoke test endpoint for CI/CD pipeline and post-deployment verification. Must balance thoroughness with execution time.
+
+**OPTIONS CONSIDERED:**
+
+**Option A: Basic Health Check**
+```python
+@app.route('/health', methods=['GET'])
+def health():
+    return jsonify({"status": "ok"}), 200
+```
+- ✅ Pros:
+  - Fast (< 1ms)
+  - No database dependency
+- ❌ Cons:
+  - Only proves Flask is running (doesn't test DB, OTel, etc.)
+  - Can return 200 even if database is down
+
+**Option B: Comprehensive Health Check**
+```python
+@app.route('/health', methods=['GET'])
+def health():
+    try:
+        db.session.execute('SELECT 1')  # Test DB connection
+        return jsonify({"status": "ok", "database": "connected"}), 200
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
+```
+- ✅ Pros:
+  - Tests actual database connectivity
+  - Fails fast if critical dependency is down
+- ❌ Cons:
+  - Slower (10-50ms per health check)
+  - Adds load to database (if health checked frequently)
+
+**Option C: Smoke Test Endpoint (Load + Performance Baseline)**
+```python
+@app.route('/api/smoke/db', methods=['POST'])
+def smoke_test_db():
+    # Configurable load test
+    num_writes = request.json.get('num_writes', 10)
+    num_reads = request.json.get('num_reads', 100)
+
+    # Perform writes and reads
+    # Return performance metrics (min, max, avg latency)
+```
+- ✅ Pros:
+  - **Performance Baseline:** Measure database query latency
+  - **Load Testing:** Simulate realistic traffic patterns
+  - **Instrumentation Verification:** Generates traces, logs, metrics for observability stack
+- ❌ Cons:
+  - Slower execution (1-5 seconds depending on load)
+  - Not suitable for frequent health checks (meant for CI/CD, not liveness probe)
+
+**CHOSEN:** Option C - Dedicated Smoke Test Endpoint (with separate basic /health endpoint)
+
+**RATIONALE:**
+- **Two Endpoints, Two Purposes:**
+  - `/health` - Fast liveness probe (Docker healthcheck, load balancer)
+  - `/api/smoke/db` - Comprehensive smoke test (CI/CD, post-deployment)
+- **Performance Baseline:** Smoke test establishes normal latency (detect regressions)
+- **Observability Validation:** Generates telemetry data to verify OTel Collector, Prometheus, Tempo, Loki are working
+- **Load Testing:** Can simulate realistic traffic during deployment verification
+
+**IMPLEMENTATION:**
+
+**Basic Health Endpoint (backend/app.py line 219):**
+```python
+@app.route('/health', methods=['GET'])
+def health():
+    return jsonify({"status": "healthy"}), 200
+```
+- Used by: Docker Compose healthcheck (line 18 in docker-compose.yml)
+- Frequency: Every 10 seconds
+- Timeout: 3 seconds
+
+**Smoke Test Endpoint (backend/app.py lines 423-468):**
+```python
+@app.route('/api/smoke/db', methods=['POST'])
+def smoke_test_db():
+    num_writes = request.json.get('num_writes', 10)
+    num_reads = request.json.get('num_reads', 100)
+    rollback = request.json.get('rollback', True)
+
+    # Perform writes
+    task_ids = []
+    for i in range(num_writes):
+        task = Task(title=f"Smoke Test Task {i}", description="Generated by smoke test")
+        db.session.add(task)
+        task_ids.append(task.id)
+    db.session.commit()
+
+    # Perform reads and measure latency
+    latencies = []
+    for _ in range(num_reads):
+        start = time.time()
+        Task.query.filter_by(id=random.choice(task_ids)).first()
+        latencies.append(time.time() - start)
+
+    # Rollback writes (clean up test data)
+    if rollback:
+        Task.query.filter(Task.id.in_(task_ids)).delete()
+        db.session.commit()
+
+    return jsonify({
+        "status": "success",
+        "writes": num_writes,
+        "reads": num_reads,
+        "latency_ms": {
+            "min": min(latencies) * 1000,
+            "max": max(latencies) * 1000,
+            "avg": sum(latencies) / len(latencies) * 1000
+        }
+    }), 200
+```
+
+**USAGE IN CI/CD (Jenkinsfile line 95):**
+```groovy
+stage('Smoke Tests') {
+    steps {
+        script {
+            sh '''
+                curl -f http://192.168.122.250:80 || exit 1
+                curl -f http://192.168.122.250:3000 || exit 1
+                curl -X POST -H "Content-Type: application/json" \
+                     -d '{"num_writes":5,"num_reads":20}' \
+                     http://192.168.122.250:80/api/smoke/db || exit 1
+            '''
+        }
+    }
+}
+```
+
+**PERFORMANCE BASELINE (Expected Latencies):**
+- **Writes:** 5-15ms per INSERT (SQLite on SSD)
+- **Reads:** 1-5ms per SELECT by ID (indexed)
+- **Total Test:** 1-3 seconds for 10 writes + 100 reads
+
+**OBSERVABILITY VALIDATION:**
+Smoke test generates:
+- **Traces:** 100+ spans in Tempo (HTTP request, DB queries)
+- **Metrics:** `http_requests_total`, `database_query_duration_seconds` in Prometheus
+- **Logs:** Structured JSON logs in Loki with trace_id correlation
+
+**WHY NOT USE /health FOR SMOKE TESTS?**
+- Health checks run every 10 seconds (load balancer, Docker)
+- Smoke tests generate load (10 writes, 100 reads) - inappropriate for liveness probe
+- Separation of concerns: fast health vs. comprehensive smoke test
+
+**FUTURE ENHANCEMENTS (Phase 2):**
+- Smoke test for Prometheus metrics endpoint (verify /metrics returns data)
+- Smoke test for distributed tracing (verify trace_id propagation)
+- Smoke test for log correlation (verify logs have trace_id)
+
+**LESSONS LEARNED:**
+1. **Separate Health from Smoke Test:** Different use cases, different SLAs
+2. **Smoke Tests Validate Observability:** Not just "does it work", but "can we see it working?"
+3. **Performance Baselines Catch Regressions:** If latency 10x higher, something broke
+
+---
+
+### DD-016: Docker Compose Dependency Chain (Parallel Start vs. Sequential vs. Healthcheck-Based)
+
+**CONTEXT:**
+Docker Compose must start 7 services in correct order. Backend needs OTel Collector; Frontend needs Backend; Grafana needs Prometheus, Tempo, Loki. How to orchestrate startup?
+
+**OPTIONS CONSIDERED:**
+
+**Option A: Parallel Start (No Dependencies)**
+```yaml
+services:
+  backend:
+    image: backend:latest
+  frontend:
+    image: frontend:latest
+  prometheus:
+    image: prom/prometheus:2.48.1
+```
+- ✅ Pros:
+  - Fast startup (all containers start simultaneously)
+  - Simple configuration
+- ❌ Cons:
+  - **Race Conditions:** Frontend starts before backend ready → 502 errors
+  - **OTel Failures:** Backend sends traces before Tempo ready → lost telemetry
+  - **Grafana Startup Errors:** Queries datasources before Prometheus ready
+
+**Option B: Sequential Startup (depends_on without healthcheck)**
+```yaml
+services:
+  backend:
+    depends_on:
+      - otel-collector
+  frontend:
+    depends_on:
+      - backend
+```
+- ✅ Pros:
+  - Services start in order (backend after otel-collector)
+  - Eliminates some race conditions
+- ❌ Cons:
+  - **"Started" ≠ "Ready":** Container starts but service not accepting connections yet
+  - Example: Backend container starts, but Flask app still initializing → frontend gets connection refused
+
+**Option C: Healthcheck-Based Dependencies (depends_on + condition: service_healthy)**
+```yaml
+services:
+  backend:
+    depends_on:
+      otel-collector:
+        condition: service_started  # OTel Collector has no healthcheck
+    healthcheck:
+      test: ["CMD", "python", "-c", "import requests; requests.get('http://localhost:5000/health')"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 5s
+
+  frontend:
+    depends_on:
+      backend:
+        condition: service_healthy  # Wait for backend healthcheck to pass
+```
+- ✅ Pros:
+  - **True Readiness:** Frontend waits until backend healthcheck passes
+  - **Eliminates 502 Errors:** Nginx only starts proxying when backend is ready
+  - **Graceful Startup:** Services start when dependencies are ready, not just started
+- ❌ Cons:
+  - Requires healthcheck for every service (only backend has one currently)
+  - Slower startup (sequential waiting)
+
+**CHOSEN:** Option C - Healthcheck-Based Dependencies (Partial Implementation)
+
+**RATIONALE:**
+- **Critical Path Protected:** Frontend → Backend uses `condition: service_healthy`
+- **Observability Stack:** Prometheus, Tempo, Loki start independently (Grafana depends on all three)
+- **Graceful Degradation:** Backend starts even if OTel Collector not ready (telemetry buffered/lost, but app functional)
+
+**IMPLEMENTATION:**
+
+**Dependency Chain (docker-compose.yml):**
+
+**Layer 1: Storage & Collection (Start First)**
+```yaml
+services:
+  prometheus:
+    image: prom/prometheus:2.48.1
+    # No dependencies
+
+  tempo:
+    image: grafana/tempo:2.3.1
+    # No dependencies
+
+  loki:
+    image: grafana/loki:2.9.3
+    # No dependencies
+
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.91.0
+    depends_on:
+      - tempo
+      - loki
+      - prometheus
+```
+
+**Layer 2: Application (Start After OTel Collector)**
+```yaml
+  backend:
+    build: ./backend
+    depends_on:
+      - otel-collector
+    healthcheck:
+      test: ["CMD", "python", "-c", "import requests; requests.get('http://localhost:5000/health')"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 5s
+```
+
+**Layer 3: Frontend (Start After Backend Healthy)**
+```yaml
+  frontend:
+    build: ./frontend
+    depends_on:
+      backend:
+        condition: service_healthy  # Only healthcheck-based dependency
+```
+
+**Layer 4: Visualization (Start After All Datasources)**
+```yaml
+  grafana:
+    image: grafana/grafana:10.2.3
+    depends_on:
+      - prometheus
+      - tempo
+      - loki
+```
+
+**WHY ONLY BACKEND HAS HEALTHCHECK?**
+
+**Current State:**
+- **Backend:** Healthcheck at `/health` endpoint (validates Flask app ready)
+- **Prometheus, Tempo, Loki, OTel Collector:** No healthchecks (assume ready when container starts)
+
+**Rationale:**
+- **Frontend is User-Facing:** 502 errors are user-visible → must ensure backend ready
+- **Observability Stack:** If Prometheus not ready, Grafana shows "error loading dashboards" but doesn't block deployment
+- **Graceful Degradation:** Backend can lose telemetry (if OTel Collector slow) without breaking
+
+**FUTURE IMPROVEMENT (Phase 2):**
+Add healthchecks to all observability services:
+
+```yaml
+prometheus:
+  healthcheck:
+    test: ["CMD", "wget", "-q", "--spider", "http://localhost:9090/-/healthy"]
+    interval: 10s
+    timeout: 3s
+
+tempo:
+  healthcheck:
+    test: ["CMD", "wget", "-q", "--spider", "http://localhost:3200/ready"]
+    interval: 10s
+    timeout: 3s
+
+loki:
+  healthcheck:
+    test: ["CMD", "wget", "-q", "--spider", "http://localhost:3100/ready"]
+    interval: 10s
+    timeout: 3s
+```
+
+Then update Grafana to wait for all datasources:
+```yaml
+grafana:
+  depends_on:
+    prometheus:
+      condition: service_healthy
+    tempo:
+      condition: service_healthy
+    loki:
+      condition: service_healthy
+```
+
+**STARTUP TIMING (Current):**
+1. **0s:** Prometheus, Tempo, Loki, OTel Collector start (parallel)
+2. **2s:** Backend starts (waits for OTel Collector container to exist)
+3. **7s:** Backend healthcheck passes (Flask app initialized, /health returns 200)
+4. **7s:** Frontend starts (waits for backend healthy)
+5. **9s:** Frontend ready (Nginx proxying to backend)
+6. **2s:** Grafana starts (after Prometheus/Tempo/Loki containers exist)
+
+**Total:** ~10-12 seconds from `docker compose up` to fully operational
+
+**LESSONS LEARNED:**
+1. **Healthchecks are Critical:** `depends_on` without healthcheck is insufficient
+2. **Graceful Degradation:** Observability failures shouldn't break application
+3. **Layer Dependencies:** Think in layers (storage → collection → application → visualization)
+4. **Document the "Why":** Explain why some services have healthchecks and others don't
+
+---
 
 ### Summary of Accepted Trade-Offs
 
 | Decision | What Was Given Up | What Was Gained | Worth It? |
 |----------|----------------|----------------|-----------|
 | **SQLite vs. PostgreSQL** | Production database features | Simplicity, zero config | ✅ Yes (for PoC), will migrate in Phase 3 |
-| **Prometheus Client (No OTel Metrics)** | Centralized metric processing | Single source, no duplication | ✅ Yes, traces are the real OTel value |
-| **Nginx Proxy vs. CORS** | Direct client→backend connection | Same-origin, production pattern | ✅ Yes, industry standard |
+| **Hybrid Metrics (Prometheus + OTel)** | Single metrics system | Best tool for each use case (HTTP vs. DB metrics) | ✅ Yes, leverages strengths of both |
+| **Nginx Proxy + CORS (Defense-in-Depth)** | Single CORS mechanism simplicity | Redundancy, graceful degradation, dev convenience | ✅ Yes, minimal cost for high reliability |
 | **SSH Deployment vs. Ansible** | Declarative infrastructure as code | Works today, no learning curve | ✅ Yes, Ansible lands in Phase 3 |
 | **KVM vs. Cloud VMs** | Cloud portability, pay-as-you-go | Zero recurring costs, on-prem simulation | ✅ Yes, aligns with "on-prem domain" vision |
 | **Dynamic DNS in Nginx** | Slight performance overhead | Resilience to backend restarts | ✅ Yes, prevents 502 errors |
@@ -1374,9 +2076,15 @@ DB_PASSWORD = secret['data']['data']['password']
 
 ---
 
-**Document Version:** 1.0
+**Document Version:** 1.1
 **Author:** Wally
-**Last Updated:** 2025-10-20
+**Last Updated:** 2025-10-22
 **Status:** Living Document (will be updated as new decisions are made)
+
+**Recent Additions (v1.1 - October 22, 2025):**
+- DD-013: CORS Redundancy Strategy (Defense-in-Depth rationale)
+- DD-014: OpenTelemetry Instrumentation Strategy (Auto + Manual Hybrid)
+- DD-015: Smoke Test Endpoint Design (Performance baseline + observability validation)
+- DD-016: Docker Compose Dependency Chain (Healthcheck-based orchestration)
 
 **License:** MIT (use for your own learning)

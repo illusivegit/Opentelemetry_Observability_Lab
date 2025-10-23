@@ -530,4 +530,4 @@ Make trace IDs clickable to jump to detailed view:
 **Document Version:** 1.0
 **Last Updated:** 2025-10-20
 **Verified On:** Grafana 10.2.3 + Tempo 2.3.1
-**Related Files:** See docs/phase-1-docker-compose/deployment-verification.md for post-deployment validation
+**Related Files:** See docs/phase-1-docker-compose/VERIFICATION-GUIDE.md for post-deployment validation and CI/CD testing

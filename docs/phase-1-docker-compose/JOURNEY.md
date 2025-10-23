@@ -9,6 +9,21 @@
 
 ---
 
+## Table of Contents
+
+- [Prologue: The Vision](#prologue-the-vision)
+- [Chapter 1: The On-Premises Foundation](#chapter-1-the-on-premises-foundation)
+- [Chapter 2: The CI/CD Control Plane](#chapter-2-the-cicd-control-plane)
+- [Chapter 3: The Observability Application](#chapter-3-the-observability-application)
+- [Chapter 4: The Nginx Saga](#chapter-4-the-nginx-saga)
+- [Chapter 5: The Observability Stack](#chapter-5-the-observability-stack)
+- [Chapter 6: The Wins](#chapter-6-the-wins)
+- [Chapter 7: The Roadmap](#chapter-7-the-roadmap)
+- [Epilogue: Why This Matters](#epilogue-why-this-matters)
+- [Conclusion: The Journey Continues](#conclusion-the-journey-continues)
+
+---
+
 ## Prologue: The Vision
 
 *"I want to understand how the big players do it. Not just read about it—actually build it."*
@@ -588,6 +603,146 @@ So I removed the OTel metric pipeline and kept:
 
 **Lesson:** Not every telemetry signal needs the same pipeline. Choose tools based on **what each signal needs**, not "one tool for everything."
 
+### Battle #5: The Disappearing Metrics Dropdown
+
+After successfully deploying the stack, I encountered one of the most deceptive bugs I've ever debugged. Grafana's metrics dropdown in Builder mode showed **"No options found"** despite everything appearing healthy.
+
+**The Symptom:**
+- Prometheus: ✅ Healthy, reporting 1000+ metrics
+- Grafana Code mode: ✅ Works (typing `up` returns results)
+- Grafana Builder mode metrics dropdown: ❌ Empty
+
+**Initial Hypothesis: `httpMethod: POST` Problem**
+
+My `datasources.yml` had this configuration:
+
+```yaml
+datasources:
+  - name: Prometheus
+    jsonData:
+      httpMethod: POST  # ← Suspicious!
+```
+
+I tested Prometheus's label API directly:
+
+```bash
+# GET request - should work
+curl "http://prometheus:9090/api/v1/label/__name__/values"
+# Response: {"status":"success","data":[...1047 metrics...]}
+
+# POST request - what Grafana might be doing?
+curl -X POST "http://prometheus:9090/api/v1/label/__name__/values"
+# Response: HTTP 405 Method Not Allowed
+```
+
+**Aha!** Prometheus's label API only accepts GET requests. POST returns 405.
+
+But wait—testing through Grafana's datasource proxy revealed something else:
+
+```bash
+curl -X POST "http://localhost:3000/api/datasources/proxy/uid/prometheus/api/v1/label/__name__/values"
+# Response: HTTP 403 Forbidden
+# {"message":"non allow-listed POSTs not allowed on proxied Prometheus datasource"}
+```
+
+**Grafana has a security policy** that blocks POST requests to Prometheus label endpoints! This made sense—I removed `httpMethod: POST` from `datasources.yml`, restarted Grafana, and waited for metrics to appear.
+
+**Still empty.**
+
+**The Real Investigation: Browser DevTools**
+
+Nothing in the logs explained it. The API endpoints worked. So I opened the browser.
+
+**F12 → Network tab → Click metrics dropdown**
+
+There it was—the actual request Grafana made:
+
+```http
+GET /api/datasources/uid/prometheus/resources/api/v1/label/__name__/values?start=1761112800&end=1761134400
+Status: 200 OK
+Response: {"status":"success","data":[]}
+```
+
+**HTTP 200!** The request succeeded. But `"data":[]`—an empty array!
+
+I stared at this for a moment. The API worked. Prometheus had metrics. But the response was empty.
+
+Then I looked at those timestamps:
+- `start=1761112800` → **October 22, 06:00 UTC**
+- `end=1761134400` → **October 22, 12:00 UTC**
+
+I checked when I'd restarted the containers:
+
+```bash
+docker inspect prometheus | jq '.[0].State.StartedAt'
+# "2025-10-22T12:45:00Z"  ← 10 minutes ago
+```
+
+**The containers had been running for 10 minutes.** But Grafana was requesting metrics from **6 hours ago**.
+
+I looked at the Grafana UI—top-right corner showed **"Last 6 hours"** as the selected time range.
+
+**The Real Problem: Time Range Mismatch**
+
+Prometheus's `/api/v1/label/__name__/values` endpoint is **time-range aware**. When Grafana includes `start` and `end` parameters, Prometheus only returns metrics that have data in that time window.
+
+My fresh deployment had:
+- Prometheus running for 10 minutes
+- Data from the last 10 minutes only
+- Grafana requesting metrics from 6 hours ago → **no data exists**
+
+**The Fix:**
+
+Changed the time range dropdown from "Last 6 hours" → **"Last 5 minutes"**.
+
+The metrics dropdown **immediately** populated with 1047 metrics.
+
+**Lessons Learned:**
+
+**1. HTTP 200 with Empty Data Isn't Always an Error**
+
+```json
+{"status":"success","data":[]}
+```
+
+This doesn't mean the API is broken. It means "your query succeeded, but no results match your criteria."
+
+**2. Check What the Browser Actually Requests**
+
+Server logs showed success. API tests showed success. But only **Browser DevTools** revealed the mismatch between what the UI showed ("Last 6 hours") and what data actually existed (10 minutes).
+
+**3. Time-Range Awareness in APIs**
+
+Prometheus's label API doesn't return "all known metrics." It returns "metrics with data in the specified time range." This is by design—it prevents enormous responses on large deployments.
+
+**4. The Debugging Hierarchy**
+
+I debugged this bottom-up:
+```
+Does Prometheus have data? ✅ Yes
+Does the API endpoint work? ✅ Yes
+Does Grafana's proxy work? ✅ Yes
+Does the browser request succeed? ✅ Yes... wait
+```
+
+The answer was at the **top** (UI time range), but I started at the **bottom** (backend data).
+
+**Better approach:** Start with what the user sees (Browser DevTools) before diving into backend debugging.
+
+**5. Don't Assume Configuration Issues**
+
+I spent hours chasing `httpMethod: POST` as the culprit. The actual problem? The application worked perfectly—it was returning exactly what was requested. The request parameters were just wrong for the current state of the system.
+
+**The Meta-Lesson:**
+
+> "The application isn't broken. The application is doing exactly what you told it to do. You're just not aware of what you told it to do."
+
+Browser DevTools bridges that gap. It shows you **what you actually asked for** vs. **what you think you asked for**.
+
+This battle taught me: **Always check the browser before blaming the backend.**
+
+**For detailed troubleshooting steps and complete resolution process, see:** [Metrics Dropdown Troubleshooting Guide](troubleshooting/metrics-dropdown-issue.md)
+
 ---
 
 ## Chapter 6: The Wins
@@ -636,6 +791,7 @@ After weeks of debugging, refactoring, and documenting, I had a **production-gra
 **Meta-Skills:**
 - **Debugging Distributed Systems:** Follow data flow across network boundaries
 - **Reading Error Messages:** "Working outside of application context" → understand framework lifecycles
+- **Browser DevTools for UI Debugging:** Network tab reveals actual API requests/responses when UI appears broken (time ranges, parameters, empty vs. failed responses)
 - **When to Restart vs. Rebuild:** Docker caching, DNS state, network cleanup (`docker compose down` vs `restart`)
 - **Documentation as Learning:** Writing this journey solidified my understanding
 - **Fail Fast and Iterate:** Every error taught something; perfection is the enemy of progress
@@ -798,7 +954,7 @@ Welcome to the journey.
 - Clone the repo: `git clone https://github.com/illusivegit/Opentelemetry_Observability_Lab.git`
 - Read: `ARCHITECTURE.md` (system design)
 - Read: `DESIGN-DECISIONS.md` (why choices were made)
-- Deploy: `docs/phase-1-docker-compose/deployment-verification.md` (step-by-step deployment guide)
+- Deploy: `docs/phase-1-docker-compose/VERIFICATION-GUIDE.md` (deployment verification and CI/CD testing)
 
 **Feedback Welcome:**
 Found errors? Have questions? Open an issue or PR. This is a learning project—collaboration makes it better.
@@ -814,3 +970,7 @@ Found errors? Have questions? Open an issue or PR. This is a learning project—
 **Happy Building.**
 
 *— Wally, October 2025*
+
+---
+
+**Phase 1 Documentation Set v1.0** | Last Reviewed: October 22, 2025

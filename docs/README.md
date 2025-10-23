@@ -2,7 +2,7 @@
 
 ## 🚀 Current Phase: Phase 1 - Docker Compose Stack
 **Status:** ✅ Complete
-**Last Updated:** 2025-10-20
+**Last Updated:** 2025-10-22
 **Next Phase:** Phase 2 - Policy as Code & Secure Delivery 
 
 ---
@@ -12,8 +12,9 @@
 ### 🎯 New to this project?
 1. Start with **[Project README](../README.md)** in root directory
 2. Read **[Phase 1 Architecture](phase-1-docker-compose/ARCHITECTURE.md)** for system overview
-3. Follow **[Implementation Guide](phase-1-docker-compose/IMPLEMENTATION-GUIDE.md)** to deploy
-4. Use **[Deployment Verification](phase-1-docker-compose/deployment-verification.md)** to validate
+3. Follow **[Implementation Guide](phase-1-docker-compose/IMPLEMENTATION-GUIDE.md)** for concepts
+4. Reference **[Configuration Guide](phase-1-docker-compose/CONFIGURATION-REFERENCE.md)** for YAML configs
+5. Use **[Verification Guide](phase-1-docker-compose/VERIFICATION-GUIDE.md)** to validate deployment
 
 ### 🔧 Need to troubleshoot?
 - **[Troubleshooting Playbooks](phase-1-docker-compose/troubleshooting/)** for common issues
@@ -33,20 +34,33 @@
 
 | Document | Purpose | Status |
 |----------|---------|--------|
-| **[Architecture](phase-1-docker-compose/ARCHITECTURE.md)** | Complete system design from infrastructure to application | ✅ 1,461 lines |
-| **[Design Decisions](phase-1-docker-compose/DESIGN-DECISIONS.md)** | All architectural choices with trade-offs and rationale | ✅ 1,382 lines |
-| **[Implementation Guide](phase-1-docker-compose/IMPLEMENTATION-GUIDE.md)** | Step-by-step deployment and configuration | ✅ 2,754 lines |
-| **[Journey](phase-1-docker-compose/JOURNEY.md)** | The story of building this (failures, breakthroughs, lessons) | ✅ 843 lines |
-| **[Deployment Verification](phase-1-docker-compose/deployment-verification.md)** | Post-deployment validation checklist | ✅ 631 lines |
-| **[Nginx Proxy Options](phase-1-docker-compose/nginx-proxy-pass-options.md)** | Reverse proxy design (proxy vs. CORS) | ✅ 252 lines |
-| **[Troubleshooting](phase-1-docker-compose/troubleshooting/)** | Operational playbooks for common issues | ✅ 1 playbook |
+| **[Architecture](phase-1-docker-compose/ARCHITECTURE.md)** | Complete system design - modularized into 8 sections | ✅ Master index + [8 modules](phase-1-docker-compose/architecture/) |
+| **[Design Decisions](phase-1-docker-compose/DESIGN-DECISIONS.md)** | 16 architectural decisions with trade-offs and rationale | ✅ 2,085 lines |
+| **[Implementation Guide](phase-1-docker-compose/IMPLEMENTATION-GUIDE.md)** | Architecture, integration patterns, and lessons learned | ✅ 766 lines |
+| **[Configuration Reference](phase-1-docker-compose/CONFIGURATION-REFERENCE.md)** | Complete YAML configuration guide for all components | ✅ 941 lines |
+| **[Verification Guide](phase-1-docker-compose/VERIFICATION-GUIDE.md)** | Deployment verification and CI/CD testing procedures | ✅ 980 lines |
+| **[Journey](phase-1-docker-compose/JOURNEY.md)** | The story of building this (failures, breakthroughs, lessons) | ✅ 959 lines |
+| **[Troubleshooting](phase-1-docker-compose/troubleshooting/)** | Operational playbooks for common issues | ✅ 4 guides + index |
+| **[Code Snippets](phase-1-docker-compose/snippets/)** | Reusable configuration examples | ✅ 5 snippets + index |
 
-**Key Components:**
+**Modular Architecture Sections:**
+1. **[Infrastructure Foundation](phase-1-docker-compose/architecture/infrastructure.md)** - KVM/QEMU/libvirt, VM configuration
+2. **[CI/CD Pipeline](phase-1-docker-compose/architecture/cicd-pipeline.md)** - Jenkins 6-stage deployment
+3. **[Application](phase-1-docker-compose/architecture/application.md)** - Flask backend, React frontend, SQLite
+4. **[Observability](phase-1-docker-compose/architecture/observability.md)** - OTel, Prometheus, Tempo, Loki, Grafana
+5. **[Network](phase-1-docker-compose/architecture/network.md)** - Docker networking, Nginx proxy, CORS
+6. **[Integration](phase-1-docker-compose/architecture/integration.md)** - Service dependencies, data flows
+7. **[Deployment](phase-1-docker-compose/architecture/deployment.md)** - Deployment procedures, rollback strategies
+8. **[Docker Optimization](phase-1-docker-compose/architecture/docker-optimization.md)** - BuildKit, caching, multi-stage builds
+9. **[Roadmap](phase-1-docker-compose/architecture/roadmap.md)** - Phase 2-4 planning
+
+**Key Technologies:**
 - Infrastructure: KVM/QEMU/libvirt on Debian 13
 - CI/CD: Jenkins with Docker agents, SSH deployment
-- Application: Flask backend, Nginx frontend, SQLite database
-- Observability: OpenTelemetry → Tempo (traces), Prometheus (metrics), Loki (logs)
+- Application: Flask (Python 3.12) backend, Nginx frontend, SQLite database
+- Observability: OpenTelemetry → Tempo (traces), Hybrid metrics (Prometheus + OTel), Loki (logs)
 - Visualization: Grafana dashboards (SLI/SLO, traces)
+- Architecture: Defense-in-depth (Nginx proxy + CORS headers)
 
 ---
 
@@ -110,10 +124,10 @@
 |----------|---------|------|
 | **[Observability Fundamentals](cross-cutting/observability-fundamentals.md)** | Three Pillars (traces, metrics, logs), SLI/SLO, OpenTelemetry basics | 15,000 words |
 | **[TraceQL Reference](cross-cutting/traceql-reference.md)** | Query language guide for Tempo | 4,000 words |
+| **[PromQL Reference](cross-cutting/promql-reference.md)** | Query language guide for Prometheus | 8,000 words |
+| **[LogQL Reference](cross-cutting/logql-reference.md)** | Query language guide for Loki | 7,000 words |
 
 **Planned:**
-- [ ] PromQL Reference (Prometheus queries)
-- [ ] LogQL Reference (Loki queries)
 - [ ] Security Baseline (SSH, fail2ban, firewall)
 
 ---
@@ -157,17 +171,20 @@ cp docs/templates/ARCHITECTURE-template.md docs/phase-2-security-scanning/ARCHIT
 
 ## 📊 Documentation Statistics
 
-**Total Documentation:** 133,000+ words
+**Total Documentation:** 150,000+ words
 
 **By Phase:**
-- **Phase 1:** 127,000 words (complete)
+- **Phase 1:** 145,000+ words (complete, modularized)
+  - 8 modular architecture sections (~200KB)
+  - 16 design decisions documented
+  - 20+ architecture diagrams
 - **Cross-cutting:** 19,000 words (growing)
 - **Templates:** 3,000 words (guides for future)
 
 **File Count:**
-- Documentation files: 11
+- Documentation files: 14+ (modularized architecture)
 - Templates: 3
-- Troubleshooting playbooks: 1
+- Troubleshooting playbooks: 4
 
 ---
 
@@ -199,15 +216,16 @@ cp docs/templates/ARCHITECTURE-template.md docs/phase-2-security-scanning/ARCHIT
 ### File Size Limits
 | Type | Max Lines | Action When Exceeded |
 |------|-----------|----------------------|
-| ARCHITECTURE.md | 1,000 | Split by domain |
-| IMPLEMENTATION-GUIDE.md | 1,500 | Create sub-guides |
-| DESIGN-DECISIONS.md | 1,000 | Archive old decisions |
+| ARCHITECTURE.md | 1,000 | Split by domain (✅ Done for Phase 1) |
+| IMPLEMENTATION-GUIDE.md | 2,000 | Create sub-guides |
+| DESIGN-DECISIONS.md | 2,500 | Archive old decisions or modularize |
 | Troubleshooting | 200 | One issue per file |
 
 ### Design Decision IDs
-- **Format:** `DD-{phase}-{number}`
-- **Examples:** `DD-1-001`, `DD-2-015`, `DD-3-042`
-- **Benefit:** Clear phase association
+- **Format:** `DD-{number}` (Phase 1 uses simple numbering)
+- **Examples:** `DD-001`, `DD-006`, `DD-013`
+- **Phase 1 Status:** DD-001 through DD-016 documented
+- **Future Phases:** May adopt `DD-{phase}-{number}` format for clarity
 
 ---
 
