@@ -98,12 +98,12 @@ flowchart TD
 
     Stack --> Network[otel-network<br/>Bridge Network<br/>Healthcheck-based<br/>Startup Ordering]
 
-    %% Styling
-    classDef jenkins fill:#f9f,stroke:#333,stroke-width:2px
-    classDef stage fill:#bbf,stroke:#333,stroke-width:2px
-    classDef vm fill:#bfb,stroke:#333,stroke-width:2px
-    classDef test fill:#ffb,stroke:#333,stroke-width:2px
-    classDef result fill:#fbb,stroke:#333,stroke-width:3px
+    %% Styling with better contrast
+    classDef jenkins fill:#9370DB,stroke:#333,stroke-width:2px,color:#fff
+    classDef stage fill:#4A90E2,stroke:#333,stroke-width:2px,color:#fff
+    classDef vm fill:#7ED321,stroke:#333,stroke-width:2px,color:#000
+    classDef test fill:#F5A623,stroke:#333,stroke-width:2px,color:#fff
+    classDef result fill:#FF6B6B,stroke:#333,stroke-width:3px,color:#fff
 
     class Controller,Agent jenkins
     class Stage1,Stage2,Stage3,Stage4,Stage5 stage

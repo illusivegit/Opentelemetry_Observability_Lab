@@ -67,12 +67,12 @@ graph TD
     loki -.-> grafana
     prometheus -.-> grafana
 
-    %% Styling
-    classDef storage fill:#e1f5ff,stroke:#333,stroke-width:2px
-    classDef collection fill:#fff4e1,stroke:#333,stroke-width:2px
-    classDef app fill:#e8f5e9,stroke:#333,stroke-width:2px
-    classDef present fill:#f3e5f5,stroke:#333,stroke-width:2px
-    classDef viz fill:#fff3e0,stroke:#333,stroke-width:2px
+    %% Styling with better contrast
+    classDef storage fill:#4A90E2,stroke:#333,stroke-width:2px,color:#fff
+    classDef collection fill:#F5A623,stroke:#333,stroke-width:2px,color:#fff
+    classDef app fill:#7ED321,stroke:#333,stroke-width:2px,color:#000
+    classDef present fill:#9370DB,stroke:#333,stroke-width:2px,color:#fff
+    classDef viz fill:#FF6B6B,stroke:#333,stroke-width:2px,color:#fff
 
     class tempo,loki,prometheus storage
     class collector collection
