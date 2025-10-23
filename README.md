@@ -43,12 +43,6 @@
 
 ---
 
-### 📚 Documentation Updated
-
-**docs/phase-1-docker-compose/ARCHITECTURE.md**, **docs/phase-1-docker-compose/DESIGN-DECISIONS.md**, **docs/phase-1-docker-compose/IMPLEMENTATION-GUIDE.md**, **docs/phase-1-docker-compose/JOURNEY.md** — all aligned to first-person narrative, with troubleshooting and PromQL/LogQL tips for day-2 ops.
-
----
-
 ### 🛣️ What’s Next
 - **Phase 2** → OPA/Rego policies, SAST/DAST, artifact management.  
 - **Phase 3** → Kubernetes (Helm, StatefulSets), PostgreSQL, possible service mesh.
