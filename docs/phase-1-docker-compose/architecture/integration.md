@@ -27,66 +27,107 @@ This document details how all components in the observability lab integrate with
 
 The following diagram illustrates the complete dependency chain across all services:
 
-```mermaid
-graph LR
-    %% Layer 1: Storage Backends (started first, no dependencies)
-    subgraph storage["Layer 1: Storage Backends<br/><br/>(No Dependencies)<br/><br/> "]
-        direction TB
-        tempo[Tempo<br/>Trace Storage<br/>Port: 3200]
-        loki[Loki<br/>Log Storage<br/>Port: 3100]
-        prometheus[Prometheus<br/>Metrics Storage<br/>Port: 9090]
-    end
+```
+┌──────────────────────────────────────────────────────────────────────────────────┐
+│                        Service Dependency Architecture                           │
+└──────────────────────────────────────────────────────────────────────────────────┘
 
-    %% Layer 2: Telemetry Collection (depends on storage)
-    subgraph collection["Layer 2: Telemetry Pipeline<br/><br/>(depends_on: tempo, loki, prometheus)<br/><br/> "]
-        collector[OTel Collector<br/>Receives: OTLP<br/>Ports: 4317, 4318]
-    end
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│ Layer 1: Storage Backends (No Dependencies)                                     │
+├─────────────────────────────────────────────────────────────────────────────────┤
+│                                                                                 │
+│                                                                                 │
+│  ┌─────────────────┐  ┌─────────────────┐  ┌──────────────────────┐             │
+│  │     Tempo       │  │      Loki       │  │    Prometheus        │             │
+│  │ Trace Storage   │  │  Log Storage    │  │  Metrics Storage     │             │
+│  │   Port: 3200    │  │   Port: 3100    │  │    Port: 9090        │             │
+│  └─────────────────┘  └─────────────────┘  └──────────────────────┘             │
+│                                                                                 │
+│                                                         Prometheus scrapes      │
+│                                                         backend:5000/metrics    │
+└─────────────────────────────────▲─────────────────────────────────▲─────────────┘
+                                  |                                 | 
+                                  |                                 │
+                                  |OTLP/HTTP                        │             
+                                  │(Backend pushes traces & logs)   │
+                                  |                                 |
+                                  |                                 │
+                                  |                                 │
+┌───────────────────────────────────────────────────────────────────┼─────────────┐
+│ Layer 2: Telemetry Pipeline (depends_on: tempo, loki, prometheus) │             │
+├───────────────────────────────────────────────────────────────────┼─────────────┤
+│                                 |                                 │             │
+│                                 │                                 │             │
+│                                 |                                 |             |
+|                                 |                                 |             |
+│                    ┌──────────────────────────┐                   │             │
+│                    │   OTel Collector         │                   │             │
+│                    │   Receives: OTLP         │                   │             │
+│                    │   Ports: 4317, 4318      │                   │             │
+│                    └──────────────────────────┘                   │             │
+│                                │                                  │             │
+│                                |                                  │             │
+│                                |                                  |             │ 
+│                                |                                  │             │
+│                                |                                  │             |
+│                                |                                  │             │
+└────────────────────────────────▲──────────────────────────────────┼─────────────┘
+                                 │                                  │
+                                 │                                  │
+                                 |                                  │
+┌───────────────────────────────────────────────────────────────────┼─────────────┐
+│ Layer 3: Application (depends_on: otel-collector)                 │             │
+├───────────────────────────────────────────────────────────────────┼─────────────┤
+│                                                                   │             │
+│                        ┌──────────────────────────┐               │             │
+│                        │   Flask Backend          │               │             │
+│                        │   Instrumented with OTel │               │             │
+│                        │   Port: 5000             │───────────────┘             │
+│                        └──────────────────────────┘  /metrics endpoint          │
+│                                                                                 │
+└─────────────────────────────────▲───────────────────────────────────────────────┘
+                                  |
+                                  │ 
+                                  |
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│ Layer 4: Presentation (depends_on: backend healthy) ★ STRONGEST DEPENDENCY      │
+├─────────────────────────────────────────────────────────────────────────────────┤
+│                                                                                 │
+│                        ┌──────────────────────────┐                             │
+│                        │   Nginx Frontend         │                             │
+│                        │   Proxies /api/* to      │                             │
+│                        │   backend:5000           │                             │
+│                        │   Port: 8080             │                             │
+│                        └──────────────────────────┘                             │
+│                                                                                 │
+└─────────────────────────────────────────────────────────────────────────────────┘
 
-    %% Layer 3: Application (depends on collector)
-    subgraph application["Layer 3: Application<br/><br/>(depends_on: otel-collector)<br/><br/> "]
-        backend[Flask Backend<br/>Instrumented with OTel<br/>Port: 5000]
-    end
 
-    %% Layer 4: Presentation (depends on backend health)
-    subgraph presentation["Layer 4: Presentation<br/><br/>(depends_on: backend healthy)<br/><br/> "]
-        frontend[Nginx Frontend<br/>Proxies /api/* to backend<br/>Port: 8080]
-    end
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│ Layer 5: Visualization (depends_on: prometheus, tempo, loki)                    │
+├─────────────────────────────────────────────────────────────────────────────────┤
+│                                                                                 │
+│                        ┌──────────────────────────┐                             │
+│                        │      Grafana             │                             │
+│                        │   Queries datasources    │                             │
+│                        │   Port: 3000             │                             │
+│                        └──────────────────────────┘                             │
+│                                 │                                               │
+│                 ┌───────────────┼───────────────┐                               │
+│                 │               │               │                               │
+│                 ▼               ▼               ▼                               │
+│          [Query Tempo]   [Query Loki]   [Query Prometheus]                      │
+│                                                                                 │
+└─────────────────────────────────────────────────────────────────────────────────┘
 
-    %% Layer 5: Visualization (depends on storage, reads datasources)
-    subgraph visualization["Layer 5: Visualization<br/><br/>(depends_on: prometheus, tempo, loki)<br/><br/> "]
-        grafana[Grafana<br/>Queries datasources<br/>Port: 3000]
-    end
 
-    %% Data Flow (solid arrows = writes data)
-    backend -->|OTLP| collector
-    collector -->|traces| tempo
-    collector -->|logs| loki
-    collector -->|metrics| prometheus
-
-    %% Dependency chain (dashed arrows = depends_on)
-    tempo -.-> collector
-    loki -.-> collector
-    prometheus -.-> collector
-    collector -.-> backend
-    backend -.-> frontend
-
-    %% Query flow (dotted arrows = queries/reads)
-    grafana -..-> tempo
-    grafana -..-> loki
-    grafana -..-> prometheus
-
-    %% Styling with better contrast
-    classDef storage fill:#4A90E2,stroke:#333,stroke-width:2px,color:#fff
-    classDef collection fill:#F5A623,stroke:#333,stroke-width:2px,color:#fff
-    classDef app fill:#7ED321,stroke:#333,stroke-width:2px,color:#000
-    classDef present fill:#9370DB,stroke:#333,stroke-width:2px,color:#fff
-    classDef viz fill:#FF6B6B,stroke:#333,stroke-width:2px,color:#fff
-
-    class tempo,loki,prometheus storage
-    class collector collection
-    class backend app
-    class frontend present
-    class grafana viz
+Legend:
+═══════
+ │/|      Vertical arrows show data flow from Backend upward to storage
+ ▲         Data flows up (Backend → OTel Collector → Tempo/Loki)
+           Metrics flow up (Backend → Prometheus via scrape)
+ ▼         Grafana queries flow down (Grafana → datasources)
+ ★         Healthcheck-based dependency (strongest)
 ```
 
 ### Dependency Details from docker-compose.yml
