@@ -143,12 +143,12 @@ graph TB
 
     frontend -.->|served via /| grafana
 
-    %% Styling
-    classDef jenkins fill:#e1d5e7,stroke:#333,stroke-width:2px
-    classDef app fill:#d4e1f5,stroke:#333,stroke-width:2px
-    classDef telemetry fill:#fff4cc,stroke:#333,stroke-width:2px
-    classDef storage fill:#d5e8d4,stroke:#333,stroke-width:2px
-    classDef viz fill:#ffe6cc,stroke:#333,stroke-width:2px
+    %% Styling with better contrast
+    classDef jenkins fill:#9370DB,stroke:#333,stroke-width:2px,color:#fff
+    classDef app fill:#4A90E2,stroke:#333,stroke-width:2px,color:#fff
+    classDef telemetry fill:#F5A623,stroke:#333,stroke-width:2px,color:#fff
+    classDef storage fill:#7ED321,stroke:#333,stroke-width:2px,color:#000
+    classDef viz fill:#FF6B6B,stroke:#333,stroke-width:2px,color:#fff
 
     class jenkins jenkins
     class frontend,backend app
