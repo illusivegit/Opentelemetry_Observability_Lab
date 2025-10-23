@@ -141,8 +141,6 @@ graph TB
     tempo -.->|datasource| grafana
     loki -.->|datasource| grafana
 
-    frontend -.->|served via /| grafana
-
     %% Styling with better contrast
     classDef jenkins fill:#9370DB,stroke:#333,stroke-width:2px,color:#fff
     classDef app fill:#4A90E2,stroke:#333,stroke-width:2px,color:#fff
